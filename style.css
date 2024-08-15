@@ -1,0 +1,50 @@
+* {
+  outline: 1px solid red;
+}
+
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    font-family: Arial, sans-serif;
+
+    flex-direction: column;
+}
+
+#grid-container {
+    display: grid;
+}
+
+.grid-cell {
+    width: auto;
+    height: auto;
+    min-height: 75px;
+    background-color: #f0f0f0;
+    padding: 3px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    border: 1px solid #ccc;
+}
+
+.grid-cell.active {
+    background-color: #4CAF50;
+    color: white;
+}
+
+div.scroll {
+    margin: 4px, 4px;
+    padding: 4px;
+    background-color: gray;
+    width: device-width;
+    height: 1200px;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    overflow-x: auto;
+    overflow-y: auto;
+}
