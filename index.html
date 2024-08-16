@@ -25,18 +25,21 @@
         <input type="text" id="outputs" name="outputs">
     </div>
 
-    <!-- LIFETIME TEXT-->
+    <!-- WINDOW SIZE TEXT-->
     <div>
-        <label for="lifetime">Lifetime:</label>
-        <input type="text" id="lifetime" name="lifetime">
+        <label for="window">Window Width:</label>
+        <input type="text" id="window_width" name="window_width">
     </div>
-
 
     <button id="confirm">Confirm Network Parameters</button>
     <button id='play-sim'>Play Simulation</button>
 
     <!-- BODY -->
-    <div class="scroll" id="grid-container"></div>
+    <!-- <div class="scroll" id="grid-container"></div> -->
+    <div class="scroll">
+        <div id="grid-container"></div>
+        <div id="moving-bar"></div>
+    </div>
 
     <script src="index.js"></script>
 </body>
