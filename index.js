@@ -1,4 +1,36 @@
-//const socket = new WebSocket('ws://localhost:8080');
+const socket = new WebSocket('ws://localhost:8080');
+
+socket.onopen = () => {
+    console.log("connected!")
+}
+
+let last_col = 0
+
+socket.onmessage = (event) => {
+    console.log(event.data)
+    let input_amt = Number(document.getElementById('inputs').value);
+    input_amt += Number(document.getElementById('outputs').value);
+    const gridContainer = document.getElementById('grid-container');
+    const windowWidth = Number(document.getElementById('window_width').value);
+    let current_tick = Number(event.data) % windowWidth
+    if (current_tick == 0) {
+        gridContainer.scrollLeft = 0
+    }
+
+    dehighlightCol(input_amt, last_col)
+    highlightCol(input_amt, current_tick)
+
+    last_col = current_tick
+    gridContainer.scrollLeft += 65
+}
+
+socket.onerror = (error) => {
+    console.error("WebSocket error:", error);
+};
+
+const DEFAULT_GRAY = `#f0f0f0`
+const ACTIVE_GREEN = `#4CAF50`
+const HIGHLIGHT_BLUE = 'lightblue'
 var total_neurons = -1;
 var paramsConfirmed = false;
 let ROW = -1;
@@ -8,56 +40,43 @@ let LIFETIME = -1;
 let INPUTS = -1;
 let OUTPUTS = -1;
 let TOTAL = -1;
-let matrix = [[]];
+let matrix = []
+let cellMap = {}
+let cellIsActive = {}
+let CURRENT_TICK = 0
+let lastCol = 0
 
-let animationInterval;
-let barPosition = 0;
-
-// Add these new functions to your index.js file
-function startBarAnimation() {
-    const gridContainer = document.getElementById('grid-container');
-    const movingBar = document.getElementById('moving-bar');
-
-    // Reset bar position
-    barPosition = 0;
-    movingBar.style.left = '0px';
-
-    // Clear any existing animation
-    clearInterval(animationInterval);
-
-    // Start new animation
-    lastPercent = -1
-    animationInterval = setInterval(() => {
-        scrollPercent = (gridContainer.scrollLeft / gridContainer.scrollWidth) * 100
-        if (scrollPercent - lastPercent == 0) {
-            barPosition += 1;
-            movingBar.style.transition = `left ${1000}ms linear`;
-            movingBar.style.left = `${barPosition}px`;
-
-            return
-        } 
-
-        gridContainer.scrollLeft += 1
-        lastPercent = scrollPercent
-    }, 0.1); // Adjust this value to change the speed of the bar
-}
-
-function stopBarAnimation() {
-    clearInterval(animationInterval);
-}
+const sleepNow = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
 
 function get2dCoordinate(index, width) {
     return [index % width, Math.floor(index / width)]
+}
+
+function highlightCol(neurons, col) {
+    for (let neuron = 0; neuron < neurons; neuron++) {
+        cellMap[`${neuron}${col}`].style.backgroundColor = HIGHLIGHT_BLUE
+    }
+}
+
+function dehighlightCol(neurons, col) {
+    for (let neuron = 0; neuron < neurons; neuron++) {
+        if (cellIsActive[`${neuron}${col}`]) {
+            cellMap[`${neuron}${col}`].style.backgroundColor = ACTIVE_GREEN
+        } else {
+            cellMap[`${neuron}${col}`].style.backgroundColor = DEFAULT_GRAY
+        }
+    }
 }
 
 function create2dArray(rows, windowWidth) {
     var arr = []
 
     for (let i = 0; i < rows; i++) {
-        arr.push([])
+        let newArr = []
         for (let j = 0; j < windowWidth; j++) {
-            arr[i].push(0)
+            newArr.push(0)
         }
+        arr.push(newArr)
     }
 
     return arr;
@@ -67,22 +86,24 @@ function startNetworkSimulation() {
     GRID_SIZE = document.getElementById('grid_size').value;
     INPUTS = document.getElementById('inputs').value;
     OUTPUTS = document.getElementById('outputs').value;
+    WW = document.getElementById('window_width').value;
     TOTAL = GRID_SIZE * GRID_SIZE
     if (GRID_SIZE == -1 || INPUTS == -1 || OUTPUTS == -1 || TOTAL == -1) {
         return
     }
 
-    //socket.send(JSON.stringify({
-    //    'play' : true,
-    //    'grid-size' : GRID_SIZE,
-    //    'lifetime' : LIFETIME,
-    //    'neuron-total' : TOTAL,
-    //    'inputs' : INPUTS,
-    //    'outputs' : OUTPUTS,
-    //    'network' : matrix,
-    //}))
+    let payload = {
+        'play' : true,
+        'grid-size' : GRID_SIZE,
+        'lifetime' : LIFETIME,
+        'neuron-total' : TOTAL,
+        'inputs' : INPUTS,
+        'outputs' : OUTPUTS,
+        'network' : matrix,
+        'window_width' : WW,
+    }
 
-    startBarAnimation()
+    socket.send(JSON.stringify(payload))
 }
 
 function confirmNetworkParams() {
@@ -93,9 +114,11 @@ function confirmNetworkParams() {
         gridContainer.replaceChildren()
     }
 
-    const gridSize = document.getElementById('grid_size').value;
-    const inputAmt = document.getElementById('inputs').value;
-    const windowWidth = document.getElementById('window_width').value;
+    const gridSize = Number(document.getElementById('grid_size').value);
+    let inputAmt = Number(document.getElementById('inputs').value);
+    const outputAmt = Number(document.getElementById('outputs').value);
+    inputAmt += outputAmt
+    const windowWidth = Number(document.getElementById('window_width').value);
 
     if (gridSize == "" || inputAmt == "") {
         return;
@@ -105,8 +128,6 @@ function confirmNetworkParams() {
 
     // Set the grid-template-rows and grid-template-columns CSS properties
     gridContainer.style.gridTemplateRows = `repeat(${inputAmt}, 1fr)`;
-
-    matrix = create2dArray(inputAmt, windowWidth)
 
     let index = 0
     for (let row = 0; row < inputAmt; row++) {
@@ -120,10 +141,21 @@ function confirmNetworkParams() {
 
             // Display the cell coordinates
             cell.textContent = `${coord[0]}, ${coord[1]}`;
+            cellMap[cell.dataset.id] = cell
+            cellIsActive[cell.dataset.id] = false
 
             cell.addEventListener('click', () => {
-                cell.classList.toggle('active');
-                matrix[row][col] = 1
+                cellIsActive[cell.dataset.id] = !cellIsActive[cell.dataset.id]
+
+                if (cellIsActive[cell.dataset.id]) {
+                    cell.style.backgroundColor = ACTIVE_GREEN
+                    matrix.push(coord)
+                } else {
+                    cell.style.backgroundColor = DEFAULT_GRAY
+                    let i = matrix.indexOf(coord)
+                    matrix.splice(i, 1)
+                }
+
             });
 
             gridContainer.appendChild(cell);
@@ -133,15 +165,37 @@ function confirmNetworkParams() {
     paramsConfirmed = true
 }
 
+function stopSimulation() {
+    console.log("stopping")
+    socket.send(JSON.stringify({'play' : false}))
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     var confirmParamsButton = document.getElementById("confirm")
     var playSimButton = document.getElementById('play-sim')
+    var stopSimButton = document.getElementById('stop-sim')
 
+    const windowWidth = Number(document.getElementById('window_width').value);
+    let inputamt = Number(document.getElementById('inputs').value);
+    inputamt += Number(document.getElementById('outputs').value);
+
+    // MARK: BUTTON CONNECTIONS
     confirmParamsButton.addEventListener("click", confirmNetworkParams)
     playSimButton.addEventListener("click", startNetworkSimulation)
+    stopSimButton.addEventListener("click", stopSimulation)
 });
 
-
-
-
+//socket.addEventListener("message", ({ data }) => {
+//    console.log("receiving message: " + data)
+//    // const event = JSON.parse(data);
+//    // CURRENT_TICK = Number(event) % windowWidth
+//    // if (CURRENT_TICK == 0) {
+//    //     gridContainer.scrollLeft = 0
+//    // }
+//
+//    // dehighlightCol(inputamt, lastCol)
+//    // highlightCol(inputamt, CURRENT_TICK)
+//
+//    // lastCol = CURRENT_TICK
+//    // gridContainer.scrollLeft += 65
+//});
