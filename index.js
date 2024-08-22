@@ -103,6 +103,7 @@ function startNetworkSimulation() {
     INPUTS = document.getElementById('inputs').value;
     OUTPUTS = document.getElementById('outputs').value;
     WW = document.getElementById('window_width').value;
+    STARTUP = document.getElementById('startup_time').value;
     TOTAL = GRID_SIZE * GRID_SIZE
     if (GRID_SIZE == -1 || INPUTS == -1 || OUTPUTS == -1 || TOTAL == -1) {
         return
@@ -117,6 +118,7 @@ function startNetworkSimulation() {
         'outputs' : OUTPUTS,
         'network' : matrix,
         'window_width' : WW,
+        'startup_time': STARTUP
     }
 
     socket.send(JSON.stringify(payload))
@@ -137,7 +139,8 @@ function confirmNetworkParams() {
     const outputAmt = Number(document.getElementById('outputs').value);
     inputAmt += outputAmt
     const windowWidth = Number(document.getElementById('window_width').value);
-
+    
+    
     if (gridSize == "" || inputAmt == "") {
         return;
     }
@@ -210,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
     var confirmParamsButton = document.getElementById("confirm")
     var playSimButton = document.getElementById('play-sim')
     var stopSimButton = document.getElementById('stop-sim')
-
+    
     const windowWidth = Number(document.getElementById('window_width').value);
     let inputamt = Number(document.getElementById('inputs').value);
     inputamt += Number(document.getElementById('outputs').value);
