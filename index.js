@@ -162,7 +162,7 @@ function confirmNetworkParams() {
             cellMap[cell.dataset.id] = cell
             cellIsActive[cell.dataset.id] = false
 
-            if (coord[1] % 2 == 0) {
+            if (coord[0] % 2 == 0) {
                 CELL_DEFAULT_COLOR[cell.dataset.id] = `#92A0AD`
             } else {
                 CELL_DEFAULT_COLOR[cell.dataset.id] = `#708090`
