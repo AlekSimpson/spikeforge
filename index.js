@@ -77,10 +77,11 @@ function dehighlightCol(neurons, col) {
     for (let neuron = 0; neuron < neurons; neuron++) {
         if (cellIsActive[`${neuron}${col}`]) {
             cellMap[`${neuron}${col}`].style.backgroundColor = ACTIVE_GREEN
-        } else {
-            var default_color = CELL_DEFAULT_COLOR[`${neuron}${col}`]
-            cellMap[`${neuron}${col}`].style.backgroundColor = default_color
+            continue
         }
+
+        var default_color = CELL_DEFAULT_COLOR[`${neuron}${col}`]
+        cellMap[`${neuron}${col}`].style.backgroundColor = default_color
     }
 }
 
@@ -105,7 +106,7 @@ function startNetworkSimulation() {
     WW = document.getElementById('window_width').value;
     STARTUP = document.getElementById('startup_time').value;
     TOTAL = GRID_SIZE * GRID_SIZE
-    if (GRID_SIZE == -1 || INPUTS == -1 || OUTPUTS == -1 || TOTAL == -1) {
+    if (GRID_SIZE == -1 || INPUTS == -1 || OUTPUTS == -1 || TOTAL == -1 || !paramsConfirmed) {
         return
     }
 
