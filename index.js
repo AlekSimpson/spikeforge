@@ -42,7 +42,6 @@ socket.onerror = (error) => {
     console.error("WebSocket error:", error);
 };
 
-const DEFAULT_GRAY = `#f0f0f0`
 const ACTIVE_GREEN = `#4CAF50`
 const HIGHLIGHT_BLUE = 'lightblue'
 var paramsConfirmed = false;
@@ -53,7 +52,7 @@ let LIFETIME = -1;
 let INPUTS = -1;
 let OUTPUTS = -1;
 let TOTAL = -1;
-let matrix = []
+let ACTIVE_CELLS = []
 let cellMap = {}
 let cellIsActive = {}
 let CELL_DEFAULT_COLOR = {}
@@ -117,7 +116,7 @@ function startNetworkSimulation() {
         'neuron-total' : TOTAL,
         'inputs' : INPUTS,
         'outputs' : OUTPUTS,
-        'network' : matrix,
+        'network' : ACTIVE_CELLS,
         'window_width' : WW,
         'startup_time': STARTUP
     }
@@ -164,7 +163,7 @@ function confirmNetworkParams() {
             // Display the cell coordinates
             cell.textContent = `${coord[0]} | ${coord[1]}`;
             cellMap[cell.dataset.id] = cell
-            cellIsActive[cell.dataset.id] = false
+            // cellIsActive[cell.dataset.id] = false
 
             if (coord[0] % 2 == 0) {
                 CELL_DEFAULT_COLOR[cell.dataset.id] = `#92A0AD`
@@ -172,17 +171,20 @@ function confirmNetworkParams() {
                 CELL_DEFAULT_COLOR[cell.dataset.id] = `#708090`
             }
             cell.style.backgroundColor = CELL_DEFAULT_COLOR[cell.dataset.id]
+            if (cellIsActive[cell.dataset.id]) {
+                cell.style.backgroundColor = ACTIVE_GREEN
+            }
 
             cell.addEventListener('click', () => {
                 cellIsActive[cell.dataset.id] = !cellIsActive[cell.dataset.id]
 
                 if (cellIsActive[cell.dataset.id]) {
                     cell.style.backgroundColor = ACTIVE_GREEN
-                    matrix.push(coord)
+                    ACTIVE_CELLS.push(coord)
                 } else {
                     cell.style.backgroundColor = CELL_DEFAULT_COLOR[cell.dataset.id]
-                    let i = matrix.indexOf(coord)
-                    matrix.splice(i, 1)
+                    let i = ACTIVE_CELLS.indexOf(coord)
+                    ACTIVE_CELLS.splice(i, 1)
                 }
 
             });
