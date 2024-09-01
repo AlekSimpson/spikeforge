@@ -1,46 +1,62 @@
-const socket = new WebSocket('ws://localhost:8080');
-
-socket.onopen = () => {
-    console.log("connected!")
-}
+var WS;
 
 let last_col = 0
 let CURRENTLY_HIGHLIGHTED = 0
-socket.onmessage = (event) => {
-    let payload = JSON.parse(event.data)
-    let input_amt = Number(document.getElementById('inputs').value);
-    input_amt += Number(document.getElementById('outputs').value);
-    const gridContainer = document.getElementById('grid-container');
-    const windowWidth = Number(document.getElementById('window_width').value);
-    let current_tick = Number(payload['tick']) % windowWidth
-    CURRENTLY_HIGHLIGHTED = current_tick
-    if (current_tick == 0) {
-        gridContainer.scrollLeft = 0
+function connect() {
+    var ws = new WebSocket('ws://localhost:8080');
+    WS = ws
+    
+    ws.onopen = function() {
+        console.log("connected!")
+    };
+    
+    ws.onmessage = (event) => {
+        let payload = JSON.parse(event.data)
+        let input_amt = Number(document.getElementById('inputs').value);
+        input_amt += Number(document.getElementById('outputs').value);
+        const gridContainer = document.getElementById('grid-container');
+        const windowWidth = Number(document.getElementById('window_width').value);
+        let current_tick = Number(payload['tick']) % windowWidth
+        CURRENTLY_HIGHLIGHTED = current_tick
+        if (current_tick == 0) {
+            gridContainer.scrollLeft = 0
+        }
+    
+        dehighlightCol(input_amt, last_col)
+        highlightCol(input_amt, current_tick)
+    
+        last_col = current_tick
+        gridContainer.scrollLeft += 65
+    
+        // update watched neurons view
+        let input_mps = payload['inputs']
+        let output_mps = payload['outputs']
+        let mps = input_mps.concat(output_mps)
+    
+        let id;
+        let cell;
+        for (let i = 0; i < mps.length; i++) {
+            id = `0${i}`
+            cell = WATCHED_CELLS[id]
+            cell.style.backgroundColor = getColorFromValue(mps[i])
+        }
     }
-
-    dehighlightCol(input_amt, last_col)
-    highlightCol(input_amt, current_tick)
-
-    last_col = current_tick
-    gridContainer.scrollLeft += 65
-
-    // update watched neurons view
-    let input_mps = payload['inputs']
-    let output_mps = payload['outputs']
-    let mps = input_mps.concat(output_mps)
-
-    let id;
-    let cell;
-    for (let i = 0; i < mps.length; i++) {
-        id = `0${i}`
-        cell = WATCHED_CELLS[id]
-        cell.style.backgroundColor = getColorFromValue(mps[i])
-    }
+    
+    ws.onclose = function(e) {
+        console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
+        setTimeout(function() {
+            connect();
+        }, 1000);
+    };
+    
+    ws.onerror = function(err) {
+        console.error('Socket encountered error: ', err.message, 'Closing socket');
+        ws.close();
+    };
 }
 
-socket.onerror = (error) => {
-    console.error("WebSocket error:", error);
-};
+connect();
+
 
 const ACTIVE_GREEN = `#4CAF50`
 const HIGHLIGHT_BLUE = 'lightblue'
@@ -121,7 +137,7 @@ function startNetworkSimulation() {
         'startup_time': STARTUP
     }
 
-    socket.send(JSON.stringify(payload))
+    WS.send(JSON.stringify(payload))
 }
 
 function confirmNetworkParams() {
@@ -207,7 +223,7 @@ function confirmNetworkParams() {
 }
 
 function stopSimulation() {
-    socket.send(JSON.stringify({'play' : false}))
+    WS.send(JSON.stringify({'play' : false}))
 
     dehighlightCol(INPUT_AMOUNT, CURRENTLY_HIGHLIGHTED)
 }
