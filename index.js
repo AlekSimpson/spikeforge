@@ -1,7 +1,75 @@
+const ACTIVE_GREEN = `#4CAF50`
+const HIGHLIGHT_BLUE = 'lightblue'
+
 var WS;
+var paramsConfirmed = false;
+var GRID_SIZE = -1;
 
 let last_col = 0
 let CURRENTLY_HIGHLIGHTED = 0
+let ROW = -1;
+let COL = -1;
+let LIFETIME = -1;
+let INPUTS = -1;
+let OUTPUTS = -1;
+let TOTAL = -1;
+let ACTIVE_CELLS = []
+let cellMap = {}
+let cellIsActive = {}
+let CELL_DEFAULT_COLOR = {}
+let INPUT_AMOUNT = 0
+let WATCHED_CELLS = {}
+
+const colorStops = [
+    { stop: 0.1, color: [0, 0, 4] },
+    { stop: 0.2, color: [30, 15, 74] },
+    { stop: 0.3, color: [78, 28, 111] },
+    { stop: 0.4, color: [120, 28, 109] },
+    { stop: 0.5, color: [160, 35, 109] },
+    { stop: 0.6, color: [205, 59, 105] },
+    { stop: 0.7, color: [241, 96, 93] },
+    { stop: 0.8, color: [253, 154, 57] },
+    { stop: 0.9, color: [254, 205, 42] },
+    { stop: 1.0, color: [252, 246, 126] },
+    { stop: 1.1, color: [252, 253, 191] },
+];
+
+function get2dCoordinate(index, width) {
+    return [index % width, Math.floor(index / width)]
+}
+
+function highlightCol(neurons, col) {
+    for (let neuron = 0; neuron < neurons; neuron++) {
+        cellMap[`${neuron}${col}`].style.backgroundColor = HIGHLIGHT_BLUE
+    }
+}
+
+function dehighlightCol(neurons, col) {
+    for (let neuron = 0; neuron < neurons; neuron++) {
+        if (cellIsActive[`${neuron}${col}`]) {
+            cellMap[`${neuron}${col}`].style.backgroundColor = ACTIVE_GREEN
+            continue
+        }
+
+        var default_color = CELL_DEFAULT_COLOR[`${neuron}${col}`]
+        cellMap[`${neuron}${col}`].style.backgroundColor = default_color
+    }
+}
+
+function create2dArray(rows, windowWidth) {
+    var arr = []
+
+    for (let i = 0; i < rows; i++) {
+        let newArr = []
+        for (let j = 0; j < windowWidth; j++) {
+            newArr.push(0)
+        }
+        arr.push(newArr)
+    }
+
+    return arr;
+}
+
 function connect() {
     var ws = new WebSocket('ws://localhost:8080');
     WS = ws
@@ -53,65 +121,6 @@ function connect() {
         console.error('Socket encountered error: ', err.message, 'Closing socket');
         ws.close();
     };
-}
-
-connect();
-
-
-const ACTIVE_GREEN = `#4CAF50`
-const HIGHLIGHT_BLUE = 'lightblue'
-var paramsConfirmed = false;
-let ROW = -1;
-let COL = -1;
-let GRID_SIZE = -1;
-let LIFETIME = -1;
-let INPUTS = -1;
-let OUTPUTS = -1;
-let TOTAL = -1;
-let ACTIVE_CELLS = []
-let cellMap = {}
-let cellIsActive = {}
-let CELL_DEFAULT_COLOR = {}
-let INPUT_AMOUNT = 0
-
-let WATCHED_CELLS = {}
-
-const sleepNow = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
-
-function get2dCoordinate(index, width) {
-    return [index % width, Math.floor(index / width)]
-}
-
-function highlightCol(neurons, col) {
-    for (let neuron = 0; neuron < neurons; neuron++) {
-        cellMap[`${neuron}${col}`].style.backgroundColor = HIGHLIGHT_BLUE
-    }
-}
-
-function dehighlightCol(neurons, col) {
-    for (let neuron = 0; neuron < neurons; neuron++) {
-        if (cellIsActive[`${neuron}${col}`]) {
-            cellMap[`${neuron}${col}`].style.backgroundColor = ACTIVE_GREEN
-            continue
-        }
-
-        var default_color = CELL_DEFAULT_COLOR[`${neuron}${col}`]
-        cellMap[`${neuron}${col}`].style.backgroundColor = default_color
-    }
-}
-
-function create2dArray(rows, windowWidth) {
-    var arr = []
-
-    for (let i = 0; i < rows; i++) {
-        let newArr = []
-        for (let j = 0; j < windowWidth; j++) {
-            newArr.push(0)
-        }
-        arr.push(newArr)
-    }
-
-    return arr;
 }
 
 function startNetworkSimulation() {
@@ -228,41 +237,6 @@ function stopSimulation() {
     dehighlightCol(INPUT_AMOUNT, CURRENTLY_HIGHLIGHTED)
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    var confirmParamsButton = document.getElementById("confirm")
-    var playSimButton = document.getElementById('play-sim')
-    var stopSimButton = document.getElementById('stop-sim')
-    
-    const windowWidth = Number(document.getElementById('window_width').value);
-    let inputamt = Number(document.getElementById('inputs').value);
-    inputamt += Number(document.getElementById('outputs').value);
-    INPUT_AMOUNT = inputamt
-
-    // MARK: BUTTON CONNECTIONS
-    confirmParamsButton.addEventListener("click", confirmNetworkParams)
-    playSimButton.addEventListener("click", startNetworkSimulation)
-    stopSimButton.addEventListener("click", stopSimulation)
-});
-
-
-
-
-
-
-const colorStops = [
-    { stop: 0.1, color: [0, 0, 4] },
-    { stop: 0.2, color: [30, 15, 74] },
-    { stop: 0.3, color: [78, 28, 111] },
-    { stop: 0.4, color: [120, 28, 109] },
-    { stop: 0.5, color: [160, 35, 109] },
-    { stop: 0.6, color: [205, 59, 105] },
-    { stop: 0.7, color: [241, 96, 93] },
-    { stop: 0.8, color: [253, 154, 57] },
-    { stop: 0.9, color: [254, 205, 42] },
-    { stop: 1.0, color: [252, 246, 126] },
-    { stop: 1.1, color: [252, 253, 191] },
-];
-
 function interpolateColor(color1, color2, factor) {
     if (factor === undefined) factor = 0.5;
     return [
@@ -290,3 +264,30 @@ function getColorFromValue(value) {
     const color = interpolateColor(lower.color, upper.color, factor);
     return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
 }
+
+function initializeApp() {
+    connect()
+
+    document.addEventListener('DOMContentLoaded', () => {
+        var confirmParamsButton = document.getElementById("confirm")
+        var playSimButton = document.getElementById('play-sim')
+        var stopSimButton = document.getElementById('stop-sim')
+        
+        const windowWidth = Number(document.getElementById('window_width').value);
+        let inputamt = Number(document.getElementById('inputs').value);
+        inputamt += Number(document.getElementById('outputs').value);
+        INPUT_AMOUNT = inputamt
+    
+        // MARK: BUTTON CONNECTIONS
+        confirmParamsButton.addEventListener("click", confirmNetworkParams)
+        playSimButton.addEventListener("click", startNetworkSimulation)
+        stopSimButton.addEventListener("click", stopSimulation)
+    });
+}
+
+export default { GRID_SIZE, get2dCoordinate };
+
+initializeApp();
+
+
+
