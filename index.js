@@ -13,12 +13,15 @@ let LIFETIME = -1;
 let INPUTS = -1;
 let OUTPUTS = -1;
 let TOTAL = -1;
+let WW = -1;
+let STARTUP = -1
 let ACTIVE_CELLS = []
 let cellMap = {}
 let cellIsActive = {}
 let CELL_DEFAULT_COLOR = {}
 let INPUT_AMOUNT = 0
 let WATCHED_CELLS = {}
+let total_neurons = 0
 
 const colorStops = [
     { stop: 0.1, color: [0, 0, 4] },
