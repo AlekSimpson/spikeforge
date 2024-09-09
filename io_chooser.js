@@ -1,15 +1,23 @@
-import GRID_SIZE from "./index.js"
-import get2dCoordinate from "./index.js"
+import { get2dCoordinate } from "./index.js"
 
-const position_picker = document.getElementById('position-picker');
-if (GRID_SIZE > 0) {
+const ACTIVE_GREEN = '#4CAF50'
+const DEFAULT_GRAY = '#92A0AD' // #708090
+var cellIsActive = {}
+var selectedCells = []
+var idToCoordMap = {}
+
+function initializePage() {
+    const GRID_SIZE = sessionStorage.getItem('grid_size')
+
+    const position_picker = document.getElementById('position-picker');
+
     // Set the grid-template-rows and grid-template-columns CSS properties
     position_picker.style.gridTemplateRows = `repeat(${GRID_SIZE}, 1fr)`;
-    poition_picker.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
-    
+    position_picker.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
+
     let index = 0
-    for (let row = 0; row < inputAmt; row++) {
-        for (let col = 0; col < windowWidth; col++) {
+    for (let row = 0; row < GRID_SIZE; row++) {
+        for (let col = 0; col < GRID_SIZE; col++) {
             const cell = document.createElement('div');
             let coord = get2dCoordinate(index, GRID_SIZE)
             cell.classList.add('grid-cell');
@@ -18,37 +26,54 @@ if (GRID_SIZE > 0) {
             cell.dataset.id = `${coord[0]}${coord[1]}`
     
             // Display the cell coordinates
+            
             cell.textContent = `${coord[0]} | ${coord[1]}`;
-            cellMap[cell.dataset.id] = cell
-    
-            if (coord[0] % 2 == 0) {
-                CELL_DEFAULT_COLOR[cell.dataset.id] = `#92A0AD`
-            } else {
-                CELL_DEFAULT_COLOR[cell.dataset.id] = `#708090`
-            }
-            cell.style.backgroundColor = CELL_DEFAULT_COLOR[cell.dataset.id]
-            if (cellIsActive[cell.dataset.id]) {
-                cell.style.backgroundColor = ACTIVE_GREEN
-            }
+            cell.style.backgroundColor = DEFAULT_GRAY
+            cellIsActive[cell.dataset.id] = false
     
             cell.addEventListener('click', () => {
                 cellIsActive[cell.dataset.id] = !cellIsActive[cell.dataset.id]
     
                 if (cellIsActive[cell.dataset.id]) {
                     cell.style.backgroundColor = ACTIVE_GREEN
-                    ACTIVE_CELLS.push(coord)
+                    selectedCells.push(cell.dataset.id)
                 } else {
-                    cell.style.backgroundColor = CELL_DEFAULT_COLOR[cell.dataset.id]
-                    let i = ACTIVE_CELLS.indexOf(coord)
-                    ACTIVE_CELLS.splice(i, 1)
+                    cell.style.backgroundColor = DEFAULT_GRAY
+                    let i = selectedCells.indexOf(cell.dataset.id)
+                    selectedCells.splice(i, 1) // remove element at index i
                 }
-    
             });
     
-            gridContainer.appendChild(cell);
+            position_picker.appendChild(cell);
+            idToCoordMap[cell.dataset.id] = get2dCoordinate(index, GRID_SIZE)
             index++;
         }
     }
-}else {
-    position_picker.textContent = "test"
 }
+
+function exportPositions() {
+    let converted = []
+    for (let i = 0; i < selectedCells.length; i++) {
+        converted[i] = idToCoordMap[selectedCells[i]]
+    }
+
+    sessionStorage.setItem('SELECTED_CELLS', converted)
+    console.log(converted)
+}
+
+function navToMainPage() {
+    document.location = './index.html'
+}
+
+document.addEventListener("DOMContentLoaded", (event) => {
+    initializePage();
+
+    let confirm = document.getElementById("confirm-selections")
+    let backButton = document.getElementById("back")
+
+    backButton.addEventListener("click", navToMainPage)
+    confirm.addEventListener("click", exportPositions)
+});
+
+
+

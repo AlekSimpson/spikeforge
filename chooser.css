@@ -1,0 +1,35 @@
+/* * {
+  outline: 1px solid red;
+} */
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 5;
+    font-family: Arial, sans-serif;
+    flex-direction: column;
+}
+
+#position-picker {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: min-content;
+    overflow-x: auto;
+    max-width: 100%;
+    padding-bottom: 15px; /* Space for scrollbar */
+}
+
+.grid-cell {
+    width: 75px; /* Fixed width for each cell */
+    height: 75px; /* Fixed height for each cell */
+    background-color: #f0f0f0;
+    padding: 3px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}

@@ -126,12 +126,16 @@ function connect() {
     };
 }
 
+function setParameterConstants() {
+    GRID_SIZE = Number(document.getElementById('grid_size').value);
+    INPUTS = Number(document.getElementById('inputs').value);
+    OUTPUTS = Number(document.getElementById('outputs').value);
+    WW = Number(document.getElementById('window_width').value);
+    STARTUP = Number(document.getElementById('startup_time').value);
+}
+
 function startNetworkSimulation() {
-    GRID_SIZE = document.getElementById('grid_size').value;
-    INPUTS = document.getElementById('inputs').value;
-    OUTPUTS = document.getElementById('outputs').value;
-    WW = document.getElementById('window_width').value;
-    STARTUP = document.getElementById('startup_time').value;
+    setParameterConstants()
     TOTAL = GRID_SIZE * GRID_SIZE
     if (GRID_SIZE == -1 || INPUTS == -1 || OUTPUTS == -1 || TOTAL == -1 || !paramsConfirmed) {
         return
@@ -162,12 +166,15 @@ function confirmNetworkParams() {
         ioContainer.replaceChildren()
     }
 
-    const gridSize = Number(document.getElementById('grid_size').value);
+    setParameterConstants()
+
+    let gridElement = document.getElementById('grid_size')
+    const gridSize = Number(gridElement.value);
     let inputAmt = Number(document.getElementById('inputs').value);
     const outputAmt = Number(document.getElementById('outputs').value);
     inputAmt += outputAmt
     const windowWidth = Number(document.getElementById('window_width').value);
-    
+    GRID_SIZE = gridElement.value;
     
     if (gridSize == "" || inputAmt == "") {
         return;
@@ -214,7 +221,6 @@ function confirmNetworkParams() {
                     let i = ACTIVE_CELLS.indexOf(coord)
                     ACTIVE_CELLS.splice(i, 1)
                 }
-
             });
 
             gridContainer.appendChild(cell);
@@ -231,7 +237,9 @@ function confirmNetworkParams() {
         WATCHED_CELLS[cell.dataset.id] = cell
         ioContainer.appendChild(cell);
     }
+
     paramsConfirmed = true
+    sessionStorage.setItem('grid_size', GRID_SIZE)
 }
 
 function stopSimulation() {
@@ -268,29 +276,83 @@ function getColorFromValue(value) {
     return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
 }
 
+function navToChooseIOPos() {
+    savePageState()
+    document.location = './io_chooser.html'
+}
+
+function savePageState() {
+    console.log("saving values: ")
+    console.log(GRID_SIZE)
+    console.log(INPUTS)
+    console.log(OUTPUTS)
+    console.log(WW)
+    console.log(STARTUP)
+    let state = {
+        "gridsize"     : GRID_SIZE,
+        "inputs"       : INPUTS,
+        "outputs"      : OUTPUTS,
+        "window_width" : WW,
+        "startup"      : STARTUP,
+    }
+
+    sessionStorage.setItem("savedState", state)
+
+    console.log("saved page state")
+}
+
+function loadPageState() {
+    var save = sessionStorage.getItem("savedState")
+
+    GRID_SIZE = Number(save["gridsize"])
+    INPUTS = Number(save["inputs"])
+    OUTPUTS = Number(save["outputs"])
+    WW = Number(save["window_width"])
+    STARTUP = Number(save["startup"])
+
+    document.getElementById('grid_size').value = GRID_SIZE
+    document.getElementById('inputs').value = INPUTS
+    document.getElementById('outputs').value = OUTPUTS
+    document.getElementById('window_width').value = WW
+    document.getElementById('startup_time').value = STARTUP
+
+    confirmNetworkParams()
+    console.log("loading page state")
+}
+
 function initializeApp() {
     connect()
 
-    document.addEventListener('DOMContentLoaded', () => {
+    try {
+        if (sessionStorage.getItem("savedState") != null) {
+            loadPageState()
+        }
+
         var confirmParamsButton = document.getElementById("confirm")
         var playSimButton = document.getElementById('play-sim')
         var stopSimButton = document.getElementById('stop-sim')
+        var choose_io_pos_button = document.getElementById('io-pos-button')
         
-        const windowWidth = Number(document.getElementById('window_width').value);
-        let inputamt = Number(document.getElementById('inputs').value);
+        var inputamt = Number(document.getElementById('inputs').value);
         inputamt += Number(document.getElementById('outputs').value);
         INPUT_AMOUNT = inputamt
-    
-        // MARK: BUTTON CONNECTIONS
+
+        // connect the buttons to the click event
         confirmParamsButton.addEventListener("click", confirmNetworkParams)
         playSimButton.addEventListener("click", startNetworkSimulation)
         stopSimButton.addEventListener("click", stopSimulation)
-    });
+        choose_io_pos_button.addEventListener("click", navToChooseIOPos)
+    } catch (error) {
+        console.log("couldn't load index.js")
+    }
 }
 
-export default { GRID_SIZE, get2dCoordinate };
+export { get2dCoordinate };
 
-initializeApp();
+document.addEventListener("DOMContentLoaded", (event) => {
+    initializeApp();
+});
+
 
 
 
