@@ -3,6 +3,8 @@
   Scrollable horizontal grid with toggleable cells
 -->
 <script lang="ts">
+	import { uiStore, isSimulationPlaying, currentAnimationColumn, toggledCells } from '../stores/uiStore';
+	
 	interface Props {
 		rows?: number;
 		columns?: number;
@@ -17,10 +19,31 @@
 		cellStates = []
 	}: Props = $props();
 	
+	// Subscribe to ViewModel state
+	const isPlaying = $derived($isSimulationPlaying);
+	const animationColumn = $derived($currentAnimationColumn);
+	const cellToggles = $derived($toggledCells);
+	
+	// Reference to the scrollable container
+	let gridContainer: HTMLElement | null = null;
+	
+	// Auto-scroll to follow the animation
+	$effect(() => {
+		if (isPlaying && animationColumn >= 0 && gridContainer) {
+			const cellWidth = 32; // Width of each cell
+			const scrollPosition = animationColumn * cellWidth;
+			const containerWidth = gridContainer.clientWidth;
+			const rowLabelsWidth = 50; // Width of row labels
+			
+			// Scroll to keep the animated column visible, accounting for row labels
+			const targetScroll = scrollPosition - (containerWidth / 2) + (cellWidth / 2) + rowLabelsWidth;
+			gridContainer.scrollLeft = Math.max(0, targetScroll);
+		}
+	});
+	
 	const ROWS_PER_PAGE = 50;
 	let currentPage = $state(0);
 	let hoveredCell = $state<{ row: number; col: number } | null>(null);
-	let internalCellStates = $state<Map<string, boolean>>(new Map());
 	let selectedRows = $state<Set<number>>(new Set());
 	let pinnedRows = $state<number[]>([]);
 	
@@ -42,24 +65,11 @@
 		}
 	});
 	
-	function getCellKey(row: number, col: number): string {
-		return `${row},${col}`;
-	}
-	
 	function handleCellClick(displayRow: number, col: number) {
 		const actualRow = getActualRow(displayRow);
-		const key = getCellKey(actualRow, col);
 		
-		// Toggle the cell state
-		const currentState = internalCellStates.get(key) ?? false;
-		if (currentState) {
-			internalCellStates.delete(key);
-		} else {
-			internalCellStates.set(key, true);
-		}
-		
-		// Trigger reactivity
-		internalCellStates = internalCellStates;
+		// Delegate to ViewModel
+		uiStore.toggleCell(actualRow, col);
 		
 		// Call optional callback
 		if (onCellToggle) {
@@ -78,11 +88,11 @@
 	
 	function isCellActive(displayRow: number, col: number): boolean {
 		const actualRow = getActualRow(displayRow);
-		const key = getCellKey(actualRow, col);
+		const key = `${actualRow},${col}`;
 		
-		// Check internal state first, then fall back to prop
-		if (internalCellStates.has(key)) {
-			return internalCellStates.get(key) ?? false;
+		// Check ViewModel state first, then fall back to prop
+		if (cellToggles.has(key)) {
+			return cellToggles.get(key) ?? false;
 		}
 		
 		return cellStates[actualRow]?.[col] ?? false;
@@ -101,6 +111,11 @@
 		return isRowHighlight || isColHighlight;
 	}
 	
+	function isColumnAnimated(col: number): boolean {
+		// Show the red line whenever we have an animation position (playing or paused)
+		return col === animationColumn && animationColumn >= 0;
+	}
+	
 	function goToPreviousPage() {
 		if (currentPage > 0) {
 			currentPage--;
@@ -114,8 +129,13 @@
 	}
 	
 	function clearAllToggles() {
-		internalCellStates.clear();
-		internalCellStates = internalCellStates;
+		// Delegate to ViewModel
+		uiStore.clearAllToggledCells();
+	}
+	
+	function resetSimulation() {
+		// Delegate to ViewModel
+		uiStore.resetSimulation();
 	}
 	
 	function getActualRow(displayIndex: number): number {
@@ -146,6 +166,14 @@
 	function unpinRows() {
 		pinnedRows = [];
 		currentPage = 0;
+	}
+	
+	function togglePlayPause() {
+		if (isPlaying) {
+			uiStore.pauseSimulation();
+		} else {
+			uiStore.playSimulation(columns);
+		}
 	}
 </script>
 
@@ -187,6 +215,21 @@
 			{/if}
 		</div>
 		
+		<div class="center-controls">
+			<button class="play-pause-btn" onclick={togglePlayPause} aria-label={isPlaying ? 'Pause' : 'Play'}>
+				{#if isPlaying}
+					<svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<rect x="4" y="3" width="3" height="10" fill="currentColor" rx="0.5"/>
+						<rect x="9" y="3" width="3" height="10" fill="currentColor" rx="0.5"/>
+					</svg>
+				{:else}
+					<svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M5 3L12 8L5 13V3Z" fill="currentColor"/>
+					</svg>
+				{/if}
+			</button>
+		</div>
+		
 		<div class="right-controls">
 			{#if isPinned}
 				<button class="unpin-btn" onclick={unpinRows} aria-label="Unpin all rows">
@@ -203,13 +246,17 @@
 				</button>
 			{/if}
 			
+			<button class="reset-btn" onclick={resetSimulation} aria-label="Reset simulation">
+				Reset
+			</button>
+			
 			<button class="clear-btn" onclick={clearAllToggles} aria-label="Clear all toggled cells">
 				Clear All
 			</button>
 		</div>
 	</div>
 	
-	<div class="grid-with-labels">
+	<div class="grid-with-labels" bind:this={gridContainer}>
 		<!-- Top row with N label -->
 		<div class="top-row">
 			<div class="corner-spacer">
@@ -243,6 +290,7 @@
 							class="grid-cell"
 							class:active={isCellActive(rowIndex, colIndex)}
 							class:highlighted={isCellHighlighted(rowIndex, colIndex)}
+							class:animated={isColumnAnimated(colIndex)}
 							onclick={() => handleCellClick(rowIndex, colIndex)}
 							onmouseenter={() => handleCellHover(rowIndex, colIndex)}
 							onmouseleave={handleCellLeave}
@@ -270,9 +318,8 @@
 <style>
 	.spike-grid-container {
 		width: 100%;
-		height: 100%;
-		overflow-x: hidden;
-		overflow-y: hidden;
+		height: auto;
+		overflow: visible;
 		background-color: #1e2a35;
 		padding: 2rem 1rem 1rem 1rem;
 		box-sizing: border-box;
@@ -283,14 +330,14 @@
 		gap: 1rem;
 	}
 	
+	
 	.grid-with-labels {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
 		overflow-x: auto;
-		overflow-y: auto;
+		overflow-y: visible;
 		max-width: 100%;
-		max-height: 100%;
 	}
 	
 	.top-controls {
@@ -307,18 +354,43 @@
 		display: flex;
 		align-items: center;
 		gap: 1rem;
+		flex: 1;
+	}
+	
+	.center-controls {
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 	
 	.right-controls {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+		flex: 1;
+		justify-content: flex-end;
 	}
 	
 	.pagination-controls {
 		display: flex;
 		align-items: center;
 		gap: 1rem;
+	}
+	
+	.reset-btn {
+		padding: 0.4rem 1rem;
+		background-color: #e67e22;
+		border: none;
+		border-radius: 4px;
+		color: white;
+		font-size: 0.85rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background-color 0.2s;
+	}
+	
+	.reset-btn:hover {
+		background-color: #d35400;
 	}
 	
 	.clear-btn {
@@ -398,6 +470,31 @@
 		height: 14px;
 		cursor: pointer;
 		accent-color: #f39c12;
+	}
+	
+	.play-pause-btn {
+		width: 42px;
+		height: 42px;
+		background-color: #27ae60;
+		border: none;
+		border-radius: 50%;
+		color: white;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.2s;
+		box-shadow: 0 2px 6px rgba(39, 174, 96, 0.3);
+	}
+	
+	.play-pause-btn:hover {
+		background-color: #229954;
+		transform: scale(1.05);
+		box-shadow: 0 3px 10px rgba(39, 174, 96, 0.4);
+	}
+	
+	.play-pause-btn:active {
+		transform: scale(0.95);
 	}
 	
 	.page-btn {
@@ -495,6 +592,8 @@
 	.grid-row {
 		display: flex;
 		gap: 0.5rem;
+		min-width: min-content;
+		position: relative;
 	}
 	
 	.row-labels {
@@ -561,6 +660,24 @@
 	
 	.grid-cell.highlighted.active {
 		background-color: #5dade2;
+	}
+	
+	.grid-cell.animated {
+		position: relative;
+	}
+	
+	.grid-cell.animated::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(231, 76, 60, 0.4);
+		border-left: 2px solid #e74c3c;
+		border-right: 2px solid #e74c3c;
+		pointer-events: none;
+		z-index: 5;
 	}
 	
 	/* Custom scrollbar styling */

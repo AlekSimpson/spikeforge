@@ -12,10 +12,15 @@ interface UIState {
 	bottomPanelHeight: number;
 	isResizingPanel: boolean;
 	selectedSpikeSim: SpikeSim | null;
+	isSimulationPlaying: boolean;
+	currentAnimationColumn: number;
+	toggledCells: Map<string, boolean>;
 }
 
 const MIN_PANEL_HEIGHT = 100;
 const MENU_BAR_HEIGHT = 60;
+
+let animationInterval: ReturnType<typeof setInterval> | null = null;
 
 function createUIStore() {
 	const { subscribe, set, update } = writable<UIState>({
@@ -23,7 +28,10 @@ function createUIStore() {
 		isBottomPanelOpen: false,
 		bottomPanelHeight: 300,
 		isResizingPanel: false,
-		selectedSpikeSim: null
+		selectedSpikeSim: null,
+		isSimulationPlaying: false,
+		currentAnimationColumn: -1,
+		toggledCells: new Map()
 	});
 
 	return {
@@ -85,6 +93,95 @@ function createUIStore() {
 				...state,
 				selectedSpikeSim: null
 			}));
+		},
+
+		playSimulation(totalColumns: number) {
+			update(state => {
+				// Start from beginning if not started, otherwise resume
+				const startColumn = state.currentAnimationColumn < 0 ? 0 : state.currentAnimationColumn;
+				
+				// Clear any existing interval
+				if (animationInterval) {
+					clearInterval(animationInterval);
+				}
+				
+				// Start new interval
+				animationInterval = setInterval(() => {
+					update(s => ({
+						...s,
+						currentAnimationColumn: (s.currentAnimationColumn + 1) % totalColumns
+					}));
+				}, 100);
+				
+				return {
+					...state,
+					isSimulationPlaying: true,
+					currentAnimationColumn: startColumn
+				};
+			});
+		},
+
+		pauseSimulation() {
+			if (animationInterval) {
+				clearInterval(animationInterval);
+				animationInterval = null;
+			}
+			
+			update(state => ({
+				...state,
+				isSimulationPlaying: false
+			}));
+		},
+
+		stopSimulation() {
+			if (animationInterval) {
+				clearInterval(animationInterval);
+				animationInterval = null;
+			}
+			
+			update(state => ({
+				...state,
+				isSimulationPlaying: false,
+				currentAnimationColumn: -1
+			}));
+		},
+
+		resetSimulation() {
+			if (animationInterval) {
+				clearInterval(animationInterval);
+				animationInterval = null;
+			}
+			
+			update(state => ({
+				...state,
+				isSimulationPlaying: false,
+				currentAnimationColumn: -1
+			}));
+		},
+
+		toggleCell(row: number, col: number) {
+			update(state => {
+				const key = `${row},${col}`;
+				const newToggledCells = new Map(state.toggledCells);
+				
+				if (newToggledCells.has(key)) {
+					newToggledCells.delete(key);
+				} else {
+					newToggledCells.set(key, true);
+				}
+				
+				return {
+					...state,
+					toggledCells: newToggledCells
+				};
+			});
+		},
+
+		clearAllToggledCells() {
+			update(state => ({
+				...state,
+				toggledCells: new Map()
+			}));
 		}
 	};
 }
@@ -97,4 +194,7 @@ export const isBottomPanelOpen = derived(uiStore, $store => $store.isBottomPanel
 export const bottomPanelHeight = derived(uiStore, $store => $store.bottomPanelHeight);
 export const isResizingPanel = derived(uiStore, $store => $store.isResizingPanel);
 export const selectedSpikeSim = derived(uiStore, $store => $store.selectedSpikeSim);
+export const isSimulationPlaying = derived(uiStore, $store => $store.isSimulationPlaying);
+export const currentAnimationColumn = derived(uiStore, $store => $store.currentAnimationColumn);
+export const toggledCells = derived(uiStore, $store => $store.toggledCells);
 
