@@ -27,16 +27,33 @@
 	// Reference to the scrollable container
 	let gridContainer: HTMLElement | null = null;
 	
+	// Constants for cell dimensions
+	const CELL_WIDTH = 32;
+	const CELL_HEIGHT = 32;
+	
+	// Track container dimensions for visible range calculation
+	let containerWidth = $state(1000); // Default estimate
+	
+	// Update container width when it changes
+	$effect(() => {
+		if (gridContainer) {
+			containerWidth = gridContainer.clientWidth;
+		}
+	});
+	
+	// Calculate visible range for performance optimization
+	const visibleColumnsCount = $derived(Math.ceil(containerWidth / CELL_WIDTH) + 10);
+	const visibleRowsCount = $derived(Math.min(displayRows, 50));
+	
 	// Auto-scroll to follow the animation
 	$effect(() => {
 		if (isPlaying && animationColumn >= 0 && gridContainer) {
-			const cellWidth = 32; // Width of each cell
-			const scrollPosition = animationColumn * cellWidth;
+			const scrollPosition = animationColumn * CELL_WIDTH;
 			const containerWidth = gridContainer.clientWidth;
 			const rowLabelsWidth = 50; // Width of row labels
 			
 			// Scroll to keep the animated column visible, accounting for row labels
-			const targetScroll = scrollPosition - (containerWidth / 2) + (cellWidth / 2) + rowLabelsWidth;
+			const targetScroll = scrollPosition - (containerWidth / 2) + (CELL_WIDTH / 2) + rowLabelsWidth;
 			gridContainer.scrollLeft = Math.max(0, targetScroll);
 		}
 	});
@@ -102,11 +119,16 @@
 		if (!hoveredCell) return false;
 		const actualRow = getActualRow(displayRow);
 		
-		// Highlight all cells in the same row BEFORE the hovered cell (inclusive)
-		const isRowHighlight = actualRow === hoveredCell.row && col <= hoveredCell.col;
+		// Performance optimization: only highlight cells within visible range
+		// Highlight cells in the same row BEFORE the hovered cell (limited to visible range)
+		const isRowHighlight = actualRow === hoveredCell.row && 
+			col <= hoveredCell.col && 
+			col >= Math.max(0, hoveredCell.col - visibleColumnsCount);
 		
-		// Highlight all cells in the same column AFTER the hovered cell (inclusive)
-		const isColHighlight = col === hoveredCell.col && actualRow >= hoveredCell.row;
+		// Highlight cells in the same column AFTER the hovered cell (limited to visible range)
+		const isColHighlight = col === hoveredCell.col && 
+			actualRow >= hoveredCell.row && 
+			actualRow <= hoveredCell.row + visibleRowsCount;
 		
 		return isRowHighlight || isColHighlight;
 	}
