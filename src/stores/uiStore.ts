@@ -15,6 +15,7 @@ interface UIState {
 	isSimulationPlaying: boolean;
 	currentAnimationColumn: number;
 	toggledCells: Map<string, boolean>;
+	activeBottomTab: string;
 }
 
 const MIN_PANEL_HEIGHT = 100;
@@ -31,7 +32,8 @@ function createUIStore() {
 		selectedSpikeSim: null,
 		isSimulationPlaying: false,
 		currentAnimationColumn: -1,
-		toggledCells: new Map()
+		toggledCells: new Map(),
+		activeBottomTab: 'heatmap'
 	});
 
 	return {
@@ -182,6 +184,13 @@ function createUIStore() {
 				...state,
 				toggledCells: new Map()
 			}));
+		},
+
+		setActiveBottomTab(tabName: string) {
+			update(state => ({
+				...state,
+				activeBottomTab: tabName
+			}));
 		}
 	};
 }
@@ -197,4 +206,5 @@ export const selectedSpikeSim = derived(uiStore, $store => $store.selectedSpikeS
 export const isSimulationPlaying = derived(uiStore, $store => $store.isSimulationPlaying);
 export const currentAnimationColumn = derived(uiStore, $store => $store.currentAnimationColumn);
 export const toggledCells = derived(uiStore, $store => $store.toggledCells);
+export const activeBottomTab = derived(uiStore, $store => $store.activeBottomTab);
 

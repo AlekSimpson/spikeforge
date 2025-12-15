@@ -41,10 +41,6 @@
 		}
 	});
 	
-	// Calculate visible range for performance optimization
-	const visibleColumnsCount = $derived(Math.ceil(containerWidth / CELL_WIDTH) + 10);
-	const visibleRowsCount = $derived(Math.min(displayRows, 50));
-	
 	// Auto-scroll to follow the animation
 	$effect(() => {
 		if (isPlaying && animationColumn >= 0 && gridContainer) {
@@ -74,6 +70,10 @@
 	const displayRows = $derived(endRow - startRow);
 	const hasSelectedRows = $derived(selectedRows.size > 0);
 	const selectedRowCount = $derived(selectedRows.size);
+
+	// Calculate visible range for performance optimization
+	const visibleColumnsCount = $derived(Math.ceil(containerWidth / CELL_WIDTH) + 10);
+	const visibleRowsCount = $derived(Math.min(displayRows, 50));
 	
 	// Reset to page 0 when rows change
 	$effect(() => {
@@ -723,4 +723,3 @@
 		background-color: #3498db;
 	}
 </style>
-

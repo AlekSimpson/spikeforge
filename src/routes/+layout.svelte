@@ -4,6 +4,8 @@
 	import { createSpikeSim } from '../stores/SpikeSim';
 	import SpikeGrid from '../components/SpikeGrid.svelte';
 	import SimControls from '../components/SimControls.svelte';
+	import TabBar from '../components/TabBar.svelte';
+	import Heatmap from '../components/Heatmap.svelte';
 	import { onMount } from 'svelte';
 
 	let { children } = $props();
@@ -11,6 +13,15 @@
 	// Subscribe to ViewModel
 	const ui = $derived($uiStore);
 	const sim = $derived($selectedSpikeSim);
+	
+	// Define tabs for bottom panel
+	const tabs = [
+		{ id: 'heatmap', label: 'Network Activity Heatmap' },
+		{ id: 'membrane', label: 'Membrane Potential' },
+		{ id: 'synapse', label: 'Synapse Graph' },
+		{ id: 'custom', label: 'Custom Graph' },
+		{ id: 'playback', label: 'Playback' }
+	];
 	
 	// Create and select a default SpikeSim on mount
 	onMount(() => {
@@ -51,7 +62,7 @@
 				<path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 			</svg>
 		</button>
-		<!-- Menu bar content goes here -->
+		<TabBar tabs={tabs} activeTab={ui.activeBottomTab} />
 	</nav>
 
 	<!-- Left Sidebar -->
@@ -62,6 +73,55 @@
 	</aside>
 
 	<main>
+		{#if ui.activeBottomTab === 'heatmap'}
+			<div class="tab-content heatmap-tab">
+				<h3>Network Activity Heatmap</h3>
+				{#if sim}
+					{@const simData = $sim}
+					{#if simData && simData.neuronCount > 0 && simData.networkActivity.length > 0}
+						{@const heatmapSize = simData.networkActivity.length}
+						<p>Displaying {heatmapSize}x{heatmapSize} grid ({simData.neuronCount} neurons)</p>
+						<Heatmap activityData={simData.networkActivity} />
+					{:else}
+						<p>No valid neuron count or network activity data</p>
+					{/if}
+				{:else}
+					<p>No simulation selected</p>
+				{/if}
+			</div>
+		{:else if ui.activeBottomTab === 'membrane'}
+			<div class="tab-content">
+				<h3>Membrane Potential Graph</h3>
+				<p>Graph showing membrane potential changes across neurons will be displayed here.</p>
+				<div class="placeholder-box">
+					<span>Membrane Potential Chart Area</span>
+				</div>
+			</div>
+		{:else if ui.activeBottomTab === 'synapse'}
+			<div class="tab-content">
+				<h3>Synapse Graph View</h3>
+				<p>Visualization of synaptic connections and weights will be displayed here.</p>
+				<div class="placeholder-box">
+					<span>Synapse Graph Area</span>
+				</div>
+			</div>
+		{:else if ui.activeBottomTab === 'custom'}
+			<div class="tab-content">
+				<h3>Custom Graph View</h3>
+				<p>Create and display custom graphs based on simulation data.</p>
+				<div class="placeholder-box">
+					<span>Custom Graph Configuration Area</span>
+				</div>
+			</div>
+		{:else if ui.activeBottomTab === 'playback'}
+			<div class="tab-content">
+				<h3>Playback Controls</h3>
+				<p>Control simulation playback and review recorded data.</p>
+				<div class="placeholder-box">
+					<span>Playback Controls Area</span>
+				</div>
+			</div>
+		{/if}
 		{@render children()}
 	</main>
 
@@ -74,7 +134,7 @@
 	>
 		<!-- Resize Handle -->
 		{#if ui.isBottomPanelOpen}
-			<div class="resize-handle" onmousedown={handleStartResize}>
+			<div class="resize-handle" onmousedown={handleStartResize} role="separator" aria-orientation="horizontal">
 				<div class="resize-indicator"></div>
 			</div>
 		{/if}
@@ -93,13 +153,15 @@
 			</button>
 			<span class="panel-title"><!-- Panel title can go here --></span>
 		</div>
+		
 		<div class="panel-content">
 			<div class="grid-wrapper">
 				{#if sim}
-					{#if $sim.neuronCount > 0 && $sim.lifetime > 0}
+					{@const simData = $sim}
+					{#if simData && simData.neuronCount > 0 && simData.lifetime > 0}
 						<SpikeGrid 
-							rows={$sim.neuronCount} 
-							columns={$sim.lifetime}
+							rows={simData.neuronCount} 
+							columns={simData.lifetime}
 						/>
 					{:else}
 						<div class="grid-message">
@@ -285,5 +347,56 @@
 		font-style: italic;
 		text-align: center;
 		padding: 2rem;
+	}
+	
+	.tab-content {
+		flex: 1;
+		padding: 2rem;
+		overflow-y: auto;
+		color: #ecf0f1;
+	}
+	
+	.tab-content h3 {
+		color: #3498db;
+		margin-bottom: 1rem;
+		font-size: 1.25rem;
+	}
+	
+	.tab-content p {
+		color: #95a5a6;
+		line-height: 1.6;
+	}
+	
+	.placeholder-box {
+		margin-top: 2rem;
+		padding: 4rem 2rem;
+		border: 2px dashed #34495e;
+		border-radius: 8px;
+		background-color: rgba(52, 73, 94, 0.2);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 200px;
+	}
+	
+	.placeholder-box span {
+		color: #7f8c8d;
+		font-size: 1.1rem;
+		font-style: italic;
+	}
+	
+	.heatmap-tab {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		height: 100%;
+	}
+	
+	.heatmap-tab h3 {
+		margin-bottom: 0.5rem;
+	}
+	
+	.heatmap-tab p {
+		margin-bottom: 1rem;
 	}
 </style>

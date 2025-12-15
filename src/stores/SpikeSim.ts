@@ -14,20 +14,41 @@ export interface SpikeSimState {
 	lifetime: number;
 	threads: number;
 	fileSelector: string;
+	networkActivity: number[][]; // 2D array of activity levels (0-1) for heatmap visualization
 }
 
 export type SpikeSim = ReturnType<typeof createSpikeSim>;
 
+function generateNetworkActivity(neuronCount: number): number[][] {
+	// Generate initial activity data based on neuron count
+	// This creates a square grid sized to sqrt(neuronCount)
+	const size = Math.ceil(Math.sqrt(neuronCount));
+	const activity: number[][] = [];
+	
+	for (let row = 0; row < size; row++) {
+		activity[row] = [];
+		for (let col = 0; col < size; col++) {
+			// Placeholder: random activity values (will be replaced with actual simulation data)
+			activity[row][col] = Math.random();
+		}
+	}
+	
+	return activity;
+}
+
 export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
+	const initialNeuronCount = initialState?.neuronCount ?? 10;
+	
 	const { subscribe, set, update } = writable<SpikeSimState>({
 		rank: 0,
-		neuronCount: 10,
+		neuronCount: initialNeuronCount,
 		restingMp: 0,
 		decayRate: 0,
 		learningRate: 0,
 		lifetime: 50,
 		threads: 1,
 		fileSelector: '',
+		networkActivity: generateNetworkActivity(initialNeuronCount),
 		...initialState
 	});
 
@@ -39,7 +60,11 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 		},
 		
 		updateNeuronCount(value: number) {
-			update(state => ({ ...state, neuronCount: value }));
+			update(state => ({ 
+				...state, 
+				neuronCount: value,
+				networkActivity: generateNetworkActivity(value)
+			}));
 		},
 		
 		updateRestingMp(value: number) {
@@ -64,6 +89,17 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 		
 		updateFileSelector(value: string) {
 			update(state => ({ ...state, fileSelector: value }));
+		},
+		
+		updateNetworkActivity(activity: number[][]) {
+			update(state => ({ ...state, networkActivity: activity }));
+		},
+		
+		regenerateNetworkActivity() {
+			update(state => ({ 
+				...state, 
+				networkActivity: generateNetworkActivity(state.neuronCount)
+			}));
 		}
 	};
 }
