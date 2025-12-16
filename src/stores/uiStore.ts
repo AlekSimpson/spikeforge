@@ -4,7 +4,8 @@
  */
 
 import { writable, derived } from 'svelte/store';
-import type { SpikeSim } from './SpikeSim';
+import type { SpikeSim, SpikeSimState } from './SpikeSim';
+import { createSpikeSim } from './SpikeSim';
 
 interface UIState {
 	isLeftSidebarOpen: boolean;
@@ -17,25 +18,81 @@ interface UIState {
 	currentAnimationColumn: number;
 	toggledCells: Map<string, boolean>;
 	activeBottomTab: string;
+	isBackendConnected: boolean;
 }
 
 const MIN_PANEL_HEIGHT = 100;
 const MENU_BAR_HEIGHT = 60;
+const STORAGE_KEY = 'spikeforge_simulations';
 
 let animationInterval: ReturnType<typeof setInterval> | null = null;
 
+// Helper functions for localStorage persistence
+function saveSimulationsToStorage(sims: SpikeSim[], selectedSim: SpikeSim | null) {
+	try {
+		const simStates: SpikeSimState[] = [];
+		let selectedIndex = -1;
+
+		// Extract state from each SpikeSim store
+		sims.forEach((sim, index) => {
+			let state: SpikeSimState | null = null;
+			const unsubscribe = sim.subscribe(s => {
+				state = s;
+			});
+			unsubscribe();
+
+			if (state) {
+				simStates.push(state);
+			}
+
+			if (sim === selectedSim) {
+				selectedIndex = index;
+			}
+		});
+
+		localStorage.setItem(STORAGE_KEY, JSON.stringify({
+			simStates,
+			selectedIndex
+		}));
+	} catch (error) {
+		console.error('Failed to save simulations to localStorage:', error);
+	}
+}
+
+function loadSimulationsFromStorage(): { sims: SpikeSim[]; selectedSim: SpikeSim | null } {
+	try {
+		const stored = localStorage.getItem(STORAGE_KEY);
+		if (!stored) {
+			return { sims: [], selectedSim: null };
+		}
+
+		const { simStates, selectedIndex } = JSON.parse(stored);
+		const sims: SpikeSim[] = simStates.map((state: SpikeSimState) => createSpikeSim(state));
+		const selectedSim = selectedIndex >= 0 && selectedIndex < sims.length ? sims[selectedIndex] : null;
+
+		return { sims, selectedSim };
+	} catch (error) {
+		console.error('Failed to load simulations from localStorage:', error);
+		return { sims: [], selectedSim: null };
+	}
+}
+
 function createUIStore() {
+	// Load persisted simulations from localStorage
+	const { sims: persistedSims, selectedSim: persistedSelected } = loadSimulationsFromStorage();
+
 	const { subscribe, set, update } = writable<UIState>({
 		isLeftSidebarOpen: false,
 		isBottomPanelOpen: false,
 		bottomPanelHeight: 300,
 		isResizingPanel: false,
-		allSpikeSims: [],
-		selectedSpikeSim: null,
+		allSpikeSims: persistedSims,
+		selectedSpikeSim: persistedSelected,
 		isSimulationPlaying: false,
 		currentAnimationColumn: -1,
 		toggledCells: new Map(),
-		activeBottomTab: 'heatmap'
+		activeBottomTab: 'heatmap',
+		isBackendConnected: false
 	});
 
 	return {
@@ -86,10 +143,14 @@ function createUIStore() {
 		},
 
 		addSpikeSim(spikeSim: SpikeSim) {
-			update(state => ({
-				...state,
-				allSpikeSims: [...state.allSpikeSims, spikeSim]
-			}));
+			update(state => {
+				const newState = {
+					...state,
+					allSpikeSims: [...state.allSpikeSims, spikeSim]
+				};
+				saveSimulationsToStorage(newState.allSpikeSims, newState.selectedSpikeSim);
+				return newState;
+			});
 		},
 
 		removeSpikeSim(spikeSim: SpikeSim) {
@@ -99,19 +160,25 @@ function createUIStore() {
 					? (newSims.length > 0 ? newSims[0] : null)
 					: state.selectedSpikeSim;
 				
-				return {
+				const newState = {
 					...state,
 					allSpikeSims: newSims,
 					selectedSpikeSim: newSelected
 				};
+				saveSimulationsToStorage(newState.allSpikeSims, newState.selectedSpikeSim);
+				return newState;
 			});
 		},
 
 		selectSpikeSim(spikeSim: SpikeSim) {
-			update(state => ({
-				...state,
-				selectedSpikeSim: spikeSim
-			}));
+			update(state => {
+				const newState = {
+					...state,
+					selectedSpikeSim: spikeSim
+				};
+				saveSimulationsToStorage(newState.allSpikeSims, newState.selectedSpikeSim);
+				return newState;
+			});
 		},
 
 		clearSelectedSpikeSim() {
@@ -215,6 +282,13 @@ function createUIStore() {
 				...state,
 				activeBottomTab: tabName
 			}));
+		},
+
+		setBackendConnected(connected: boolean) {
+			update(state => ({
+				...state,
+				isBackendConnected: connected
+			}));
 		}
 	};
 }
@@ -232,4 +306,5 @@ export const isSimulationPlaying = derived(uiStore, $store => $store.isSimulatio
 export const currentAnimationColumn = derived(uiStore, $store => $store.currentAnimationColumn);
 export const toggledCells = derived(uiStore, $store => $store.toggledCells);
 export const activeBottomTab = derived(uiStore, $store => $store.activeBottomTab);
+export const isBackendConnected = derived(uiStore, $store => $store.isBackendConnected);
 

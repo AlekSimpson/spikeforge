@@ -1,6 +1,6 @@
 <script lang="ts">
 	import './layout.css';
-	import { uiStore, selectedSpikeSim, allSpikeSims } from '../stores/uiStore';
+	import { uiStore, selectedSpikeSim, allSpikeSims, isBackendConnected } from '../stores/uiStore';
 	import { createSpikeSim } from '../stores/SpikeSim';
 	import SpikeGrid from '../components/SpikeGrid.svelte';
 	import SimControls from '../components/SimControls.svelte';
@@ -17,6 +17,7 @@
 	const ui = $derived($uiStore);
 	const sim = $derived($selectedSpikeSim);
 	const sims = $derived($allSpikeSims);
+	const backendConnected = $derived($isBackendConnected);
 	
 	// Define tabs for bottom panel
 	const tabs = [
@@ -27,11 +28,13 @@
 		{ id: 'playback', label: 'Playback' }
 	];
 	
-	// Create and select a default SpikeSim on mount
+	// Create and select a default SpikeSim on mount if none exist
 	onMount(() => {
-		const defaultSim = createSpikeSim();
-		uiStore.addSpikeSim(defaultSim);
-		uiStore.selectSpikeSim(defaultSim);
+		if (sims.length === 0) {
+			const defaultSim = createSpikeSim();
+			uiStore.addSpikeSim(defaultSim);
+			uiStore.selectSpikeSim(defaultSim);
+		}
 	});
 	
 	// Delegate to ViewModel
@@ -82,6 +85,11 @@
 			</svg>
 		</button>
 		<TabBar tabs={tabs} activeTab={ui.activeBottomTab} />
+		
+		<div class="connection-indicator" class:connected={backendConnected} title={backendConnected ? 'Backend Connected' : 'Backend Disconnected'}>
+			<div class="connection-dot"></div>
+			<span class="connection-text">{backendConnected ? 'Connected' : 'Disconnected'}</span>
+		</div>
 	</nav>
 
 	<!-- Left Sidebar -->
@@ -260,6 +268,66 @@
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 		z-index: 200;
 		position: relative;
+	}
+
+	.connection-indicator {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-left: auto;
+		padding: 0.4rem 0.8rem;
+		background-color: rgba(231, 76, 60, 0.2);
+		border: 1px solid #e74c3c;
+		border-radius: 4px;
+		font-size: 0.85rem;
+		transition: all 0.3s;
+	}
+
+	.connection-indicator.connected {
+		background-color: rgba(39, 174, 96, 0.2);
+		border-color: #27ae60;
+	}
+
+	.connection-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background-color: #e74c3c;
+		animation: pulse-disconnected 2s ease-in-out infinite;
+	}
+
+	.connection-indicator.connected .connection-dot {
+		background-color: #27ae60;
+		animation: pulse-connected 2s ease-in-out infinite;
+	}
+
+	.connection-text {
+		color: #e74c3c;
+		font-weight: 500;
+	}
+
+	.connection-indicator.connected .connection-text {
+		color: #27ae60;
+	}
+
+	@keyframes pulse-disconnected {
+		0%, 100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.5;
+		}
+	}
+
+	@keyframes pulse-connected {
+		0%, 100% {
+			opacity: 1;
+			box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.7);
+		}
+		50% {
+			opacity: 0.9;
+			box-shadow: 0 0 0 4px rgba(39, 174, 96, 0);
+		}
 	}
 
 	.menu-toggle {
