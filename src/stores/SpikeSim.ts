@@ -15,6 +15,7 @@ export interface SpikeSimState {
 	threads: number;
 	fileSelector: string;
 	networkActivity: number[][]; // 2D array of activity levels (0-1) for heatmap visualization
+	membranePotentials: number[][]; // 2D array: [neuronIndex][timeStep] = potential value
 }
 
 export type SpikeSim = ReturnType<typeof createSpikeSim>;
@@ -36,8 +37,42 @@ function generateNetworkActivity(neuronCount: number): number[][] {
 	return activity;
 }
 
+function generateMembranePotentials(neuronCount: number, lifetime: number): number[][] {
+	// Generate membrane potential data for each neuron over time
+	// Returns 2D array: [neuronIndex][timeStep] = potential value
+	const potentials: number[][] = [];
+	
+	for (let neuron = 0; neuron < neuronCount; neuron++) {
+		potentials[neuron] = [];
+		let currentPotential = -70 + Math.random() * 10; // Start near resting potential with variation
+		
+		for (let t = 0; t < lifetime; t++) {
+			// Simulate membrane potential with random spikes and decay
+			const spikeChance = Math.random();
+			
+			if (spikeChance > 0.95) {
+				// Spike occurs
+				currentPotential = 30 + Math.random() * 10; // Action potential peak
+			} else if (currentPotential > -60) {
+				// Decay towards resting potential
+				currentPotential -= 5 + Math.random() * 3;
+			} else {
+				// Small fluctuations near resting
+				currentPotential += (Math.random() - 0.5) * 2;
+			}
+			
+			// Clamp values to realistic range
+			currentPotential = Math.max(-80, Math.min(40, currentPotential));
+			potentials[neuron][t] = currentPotential;
+		}
+	}
+	
+	return potentials;
+}
+
 export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 	const initialNeuronCount = initialState?.neuronCount ?? 10;
+	const initialLifetime = initialState?.lifetime ?? 50;
 	
 	const { subscribe, set, update } = writable<SpikeSimState>({
 		rank: 0,
@@ -45,10 +80,11 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 		restingMp: 0,
 		decayRate: 0,
 		learningRate: 0,
-		lifetime: 50,
+		lifetime: initialLifetime,
 		threads: 1,
 		fileSelector: '',
 		networkActivity: generateNetworkActivity(initialNeuronCount),
+		membranePotentials: generateMembranePotentials(initialNeuronCount, initialLifetime),
 		...initialState
 	});
 
@@ -63,7 +99,8 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 			update(state => ({ 
 				...state, 
 				neuronCount: value,
-				networkActivity: generateNetworkActivity(value)
+				networkActivity: generateNetworkActivity(value),
+				membranePotentials: generateMembranePotentials(value, state.lifetime)
 			}));
 		},
 		
@@ -80,7 +117,11 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 		},
 		
 		updateLifetime(value: number) {
-			update(state => ({ ...state, lifetime: value }));
+			update(state => ({ 
+				...state, 
+				lifetime: value,
+				membranePotentials: generateMembranePotentials(state.neuronCount, value)
+			}));
 		},
 		
 		updateThreads(value: number) {
@@ -99,6 +140,17 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 			update(state => ({ 
 				...state, 
 				networkActivity: generateNetworkActivity(state.neuronCount)
+			}));
+		},
+		
+		updateMembranePotentials(potentials: number[][]) {
+			update(state => ({ ...state, membranePotentials: potentials }));
+		},
+		
+		regenerateMembranePotentials() {
+			update(state => ({
+				...state,
+				membranePotentials: generateMembranePotentials(state.neuronCount, state.lifetime)
 			}));
 		}
 	};

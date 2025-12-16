@@ -145,19 +145,49 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		padding: 2rem;
+		padding: 1rem;
 		width: 100%;
 		height: 100%;
 	}
 	
 	.heatmap-plot {
-		width: min(80vw, 80vh);
-		height: min(80vw, 80vh);
-		max-width: 700px;
-		max-height: 700px;
-		min-width: 400px;
-		min-height: 400px;
+		width: min(55vw, 55vh);
+		height: min(55vw, 55vh);
+		max-width: 550px;
+		max-height: 550px;
+		min-width: 350px;
+		min-height: 350px;
 		aspect-ratio: 1 / 1;
+	}
+	
+	/* Responsive scaling for different screen sizes */
+	@media (max-width: 1024px) {
+		.heatmap-plot {
+			width: min(50vw, 50vh);
+			height: min(50vw, 50vh);
+			max-width: 500px;
+			max-height: 500px;
+		}
+	}
+	
+	@media (max-width: 768px) {
+		.heatmap-plot {
+			width: min(70vw, 70vh);
+			height: min(70vw, 70vh);
+			max-width: 450px;
+			max-height: 450px;
+			min-width: 300px;
+			min-height: 300px;
+		}
+	}
+	
+	@media (min-width: 1920px) {
+		.heatmap-plot {
+			width: min(45vw, 45vh);
+			height: min(45vw, 45vh);
+			max-width: 600px;
+			max-height: 600px;
+		}
 	}
 </style>
 

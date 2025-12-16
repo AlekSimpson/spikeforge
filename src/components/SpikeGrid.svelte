@@ -54,11 +54,39 @@
 		}
 	});
 	
-	const ROWS_PER_PAGE = 50;
 	let currentPage = $state(0);
 	let hoveredCell = $state<{ row: number; col: number } | null>(null);
 	let selectedRows = $state<Set<number>>(new Set());
 	let pinnedRows = $state<number[]>([]);
+	
+	// Dynamic calculation of rows per page based on window height
+	let windowHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
+	
+	// Update window height on resize
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		
+		function handleResize() {
+			windowHeight = window.innerHeight;
+		}
+		
+		window.addEventListener('resize', handleResize);
+		return () => window.removeEventListener('resize', handleResize);
+	});
+	
+	// Calculate max rows that can fit in the available space
+	// Account for:
+	// - Menu bar (~60px)
+	// - Bottom panel header (~40px)  
+	// - Resize handle (~8px)
+	// - Top controls in SpikeGrid (~80px)
+	// - Column labels (~30px)
+	// - SimControls (~60px)
+	// - Padding and margins (~40px)
+	const FIXED_HEIGHT_OVERHEAD = 318;
+	const ROWS_PER_PAGE = $derived(
+		Math.max(5, Math.min(100, Math.floor((windowHeight - FIXED_HEIGHT_OVERHEAD) / CELL_HEIGHT)))
+	);
 	
 	// Calculate pagination and display
 	const isPinned = $derived(pinnedRows.length > 0);

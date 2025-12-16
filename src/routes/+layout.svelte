@@ -6,6 +6,7 @@
 	import SimControls from '../components/SimControls.svelte';
 	import TabBar from '../components/TabBar.svelte';
 	import Heatmap from '../components/Heatmap.svelte';
+	import MembranePotentialGraph from '../components/MembranePotentialGraph.svelte';
 	import { onMount } from 'svelte';
 
 	let { children } = $props();
@@ -90,12 +91,20 @@
 				{/if}
 			</div>
 		{:else if ui.activeBottomTab === 'membrane'}
-			<div class="tab-content">
-				<h3>Membrane Potential Graph</h3>
-				<p>Graph showing membrane potential changes across neurons will be displayed here.</p>
-				<div class="placeholder-box">
-					<span>Membrane Potential Chart Area</span>
-				</div>
+			<div class="tab-content membrane-tab">
+				{#if sim}
+					{@const simData = $sim}
+					{#if simData && simData.neuronCount > 0 && simData.membranePotentials.length > 0}
+						<MembranePotentialGraph 
+							membranePotentials={simData.membranePotentials}
+							neuronCount={simData.neuronCount}
+						/>
+					{:else}
+						<p>No valid neuron count or membrane potential data</p>
+					{/if}
+				{:else}
+					<p>No simulation selected</p>
+				{/if}
 			</div>
 		{:else if ui.activeBottomTab === 'synapse'}
 			<div class="tab-content">
@@ -385,18 +394,23 @@
 		font-style: italic;
 	}
 	
-	.heatmap-tab {
+	.heatmap-tab,
+	.membrane-tab {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		height: 100%;
+		padding: 0;
 	}
 	
 	.heatmap-tab h3 {
 		margin-bottom: 0.5rem;
 	}
 	
-	.heatmap-tab p {
+	.heatmap-tab p,
+	.membrane-tab p {
 		margin-bottom: 1rem;
+		text-align: center;
+		padding: 2rem;
 	}
 </style>
