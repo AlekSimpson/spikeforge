@@ -7,6 +7,7 @@
 	import TabBar from '../components/TabBar.svelte';
 	import Heatmap from '../components/Heatmap.svelte';
 	import MembranePotentialGraph from '../components/MembranePotentialGraph.svelte';
+	import SynapseGraph from '../components/SynapseGraph.svelte';
 	import { onMount } from 'svelte';
 
 	let { children } = $props();
@@ -107,12 +108,20 @@
 				{/if}
 			</div>
 		{:else if ui.activeBottomTab === 'synapse'}
-			<div class="tab-content">
-				<h3>Synapse Graph View</h3>
-				<p>Visualization of synaptic connections and weights will be displayed here.</p>
-				<div class="placeholder-box">
-					<span>Synapse Graph Area</span>
-				</div>
+			<div class="tab-content synapse-tab">
+				{#if sim}
+					{@const simData = $sim}
+					{#if simData && simData.neuronCount > 0 && simData.neuronSynapses.length > 0}
+						<SynapseGraph 
+							neuronSynapses={simData.neuronSynapses}
+							neuronCount={simData.neuronCount}
+						/>
+					{:else}
+						<p>No valid neuron count or synapse data</p>
+					{/if}
+				{:else}
+					<p>No simulation selected</p>
+				{/if}
 			</div>
 		{:else if ui.activeBottomTab === 'custom'}
 			<div class="tab-content">
@@ -395,7 +404,8 @@
 	}
 	
 	.heatmap-tab,
-	.membrane-tab {
+	.membrane-tab,
+	.synapse-tab {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -408,7 +418,8 @@
 	}
 	
 	.heatmap-tab p,
-	.membrane-tab p {
+	.membrane-tab p,
+	.synapse-tab p {
 		margin-bottom: 1rem;
 		text-align: center;
 		padding: 2rem;

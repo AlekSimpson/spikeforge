@@ -5,6 +5,11 @@
 
 import { writable } from 'svelte/store';
 
+export interface NeuronSynapses {
+	neuronId: number;
+	synapses: number[][]; // [connectionIndex][timeStep] = weight value (3 connections per neuron)
+}
+
 export interface SpikeSimState {
 	rank: number;
 	neuronCount: number;
@@ -16,6 +21,7 @@ export interface SpikeSimState {
 	fileSelector: string;
 	networkActivity: number[][]; // 2D array of activity levels (0-1) for heatmap visualization
 	membranePotentials: number[][]; // 2D array: [neuronIndex][timeStep] = potential value
+	neuronSynapses: NeuronSynapses[]; // Array of synapse data per neuron (3 connections each)
 }
 
 export type SpikeSim = ReturnType<typeof createSpikeSim>;
@@ -70,6 +76,47 @@ function generateMembranePotentials(neuronCount: number, lifetime: number): numb
 	return potentials;
 }
 
+function generateNeuronSynapses(neuronCount: number, lifetime: number): NeuronSynapses[] {
+	// Generate synapse weight data for each neuron (3 connections per neuron)
+	// Returns array of neuron synapse data
+	const CONNECTIONS_PER_NEURON = 3;
+	const neuronSynapses: NeuronSynapses[] = [];
+	
+	for (let neuron = 0; neuron < neuronCount; neuron++) {
+		const synapses: number[][] = [];
+		
+		// Generate 3 connections for this neuron
+		for (let conn = 0; conn < CONNECTIONS_PER_NEURON; conn++) {
+			synapses[conn] = [];
+			let currentWeight = Math.random() * 2 - 1; // Start between -1 and 1
+			
+			for (let t = 0; t < lifetime; t++) {
+				// Simulate synapse weight changes with learning/plasticity
+				const changeChance = Math.random();
+				
+				if (changeChance > 0.9) {
+					// Sudden weight change (learning event)
+					currentWeight += (Math.random() - 0.5) * 0.4;
+				} else {
+					// Small drift/decay
+					currentWeight += (Math.random() - 0.5) * 0.05;
+				}
+				
+				// Clamp values to realistic range
+				currentWeight = Math.max(-1, Math.min(1, currentWeight));
+				synapses[conn][t] = currentWeight;
+			}
+		}
+		
+		neuronSynapses.push({
+			neuronId: neuron,
+			synapses: synapses
+		});
+	}
+	
+	return neuronSynapses;
+}
+
 export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 	const initialNeuronCount = initialState?.neuronCount ?? 10;
 	const initialLifetime = initialState?.lifetime ?? 50;
@@ -85,6 +132,7 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 		fileSelector: '',
 		networkActivity: generateNetworkActivity(initialNeuronCount),
 		membranePotentials: generateMembranePotentials(initialNeuronCount, initialLifetime),
+		neuronSynapses: generateNeuronSynapses(initialNeuronCount, initialLifetime),
 		...initialState
 	});
 
@@ -100,7 +148,8 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 				...state, 
 				neuronCount: value,
 				networkActivity: generateNetworkActivity(value),
-				membranePotentials: generateMembranePotentials(value, state.lifetime)
+				membranePotentials: generateMembranePotentials(value, state.lifetime),
+				neuronSynapses: generateNeuronSynapses(value, state.lifetime)
 			}));
 		},
 		
@@ -120,7 +169,8 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 			update(state => ({ 
 				...state, 
 				lifetime: value,
-				membranePotentials: generateMembranePotentials(state.neuronCount, value)
+				membranePotentials: generateMembranePotentials(state.neuronCount, value),
+				neuronSynapses: generateNeuronSynapses(state.neuronCount, value)
 			}));
 		},
 		
@@ -151,6 +201,17 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 			update(state => ({
 				...state,
 				membranePotentials: generateMembranePotentials(state.neuronCount, state.lifetime)
+			}));
+		},
+		
+		updateNeuronSynapses(synapses: NeuronSynapses[]) {
+			update(state => ({ ...state, neuronSynapses: synapses }));
+		},
+		
+		regenerateNeuronSynapses() {
+			update(state => ({
+				...state,
+				neuronSynapses: generateNeuronSynapses(state.neuronCount, state.lifetime)
 			}));
 		}
 	};
