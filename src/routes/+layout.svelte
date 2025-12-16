@@ -1,6 +1,6 @@
 <script lang="ts">
 	import './layout.css';
-	import { uiStore, selectedSpikeSim } from '../stores/uiStore';
+	import { uiStore, selectedSpikeSim, allSpikeSims } from '../stores/uiStore';
 	import { createSpikeSim } from '../stores/SpikeSim';
 	import SpikeGrid from '../components/SpikeGrid.svelte';
 	import SimControls from '../components/SimControls.svelte';
@@ -8,6 +8,7 @@
 	import Heatmap from '../components/Heatmap.svelte';
 	import MembranePotentialGraph from '../components/MembranePotentialGraph.svelte';
 	import SynapseGraph from '../components/SynapseGraph.svelte';
+	import CustomGraph from '../components/CustomGraph.svelte';
 	import { onMount } from 'svelte';
 
 	let { children } = $props();
@@ -15,6 +16,7 @@
 	// Subscribe to ViewModel
 	const ui = $derived($uiStore);
 	const sim = $derived($selectedSpikeSim);
+	const sims = $derived($allSpikeSims);
 	
 	// Define tabs for bottom panel
 	const tabs = [
@@ -28,6 +30,7 @@
 	// Create and select a default SpikeSim on mount
 	onMount(() => {
 		const defaultSim = createSpikeSim();
+		uiStore.addSpikeSim(defaultSim);
 		uiStore.selectSpikeSim(defaultSim);
 	});
 	
@@ -53,6 +56,20 @@
 	function handleStopResize() {
 		uiStore.stopResize();
 	}
+
+	function handleSelectSim(selectedSim: any) {
+		uiStore.selectSpikeSim(selectedSim);
+	}
+
+	function handleCreateNewSim() {
+		const newSim = createSpikeSim();
+		uiStore.addSpikeSim(newSim);
+		uiStore.selectSpikeSim(newSim);
+	}
+
+	function handleRemoveSim(simToRemove: any) {
+		uiStore.removeSpikeSim(simToRemove);
+	}
 </script>
 
 <svelte:window onmousemove={handleMouseMove} onmouseup={handleStopResize} />
@@ -70,7 +87,37 @@
 	<!-- Left Sidebar -->
 	<aside class="left-sidebar" class:open={ui.isLeftSidebarOpen}>
 		<div class="sidebar-content">
-			<!-- Sidebar content goes here -->
+			<div class="sidebar-header">
+				<h2>Simulations</h2>
+				<button class="new-sim-btn" onclick={handleCreateNewSim} aria-label="Create new simulation">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+						<path d="M12 5v14M5 12h14" stroke-width="2" stroke-linecap="round"/>
+					</svg>
+					New
+				</button>
+			</div>
+			<div class="sim-list">
+				{#each sims as simItem, index}
+					<div 
+						class="sim-item" 
+						class:active={simItem === sim}
+						onclick={() => handleSelectSim(simItem)}
+					>
+						<div class="sim-item-content">
+							<span class="sim-name">Simulation {index + 1}</span>
+							<button 
+								class="sim-remove-btn"
+								onclick={(e) => { e.stopPropagation(); handleRemoveSim(simItem); }}
+								aria-label="Remove simulation"
+							>
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+									<path d="M18 6L6 18M6 6l12 12" stroke-width="2" stroke-linecap="round"/>
+								</svg>
+							</button>
+						</div>
+					</div>
+				{/each}
+			</div>
 		</div>
 	</aside>
 
@@ -124,12 +171,13 @@
 				{/if}
 			</div>
 		{:else if ui.activeBottomTab === 'custom'}
-			<div class="tab-content">
-				<h3>Custom Graph View</h3>
-				<p>Create and display custom graphs based on simulation data.</p>
-				<div class="placeholder-box">
-					<span>Custom Graph Configuration Area</span>
-				</div>
+			<div class="tab-content custom-graph-tab">
+				{#if sim}
+					{@const simData = $sim}
+					<CustomGraph simulationData={simData} />
+				{:else}
+					<p>No simulation selected</p>
+				{/if}
 			</div>
 		{:else if ui.activeBottomTab === 'playback'}
 			<div class="tab-content">
@@ -255,11 +303,120 @@
 		height: 100%;
 		overflow-y: auto;
 		color: #ecf0f1;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.sidebar-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 0.5rem;
+	}
+
+	.sidebar-header h2 {
+		font-size: 1.1rem;
+		font-weight: 600;
+		color: #3498db;
+		margin: 0;
+	}
+
+	.new-sim-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.4rem 0.8rem;
+		background-color: #27ae60;
+		color: white;
+		border: none;
+		border-radius: 4px;
+		cursor: pointer;
+		font-size: 0.85rem;
+		font-weight: 500;
+		transition: background-color 0.2s;
+	}
+
+	.new-sim-btn:hover {
+		background-color: #229954;
+	}
+
+	.sim-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.sim-item {
+		padding: 0.75rem;
+		background-color: #2c3e50;
+		border: 1px solid #34495e;
+		border-radius: 4px;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.sim-item:hover {
+		background-color: #34495e;
+		border-color: #3498db;
+	}
+
+	.sim-item.active {
+		background-color: #3498db;
+		border-color: #2980b9;
+	}
+
+	.sim-item-content {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.sim-name {
+		font-size: 0.9rem;
+		font-weight: 500;
+		color: #ecf0f1;
+	}
+
+	.sim-item.active .sim-name {
+		color: white;
+	}
+
+	.sim-remove-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 24px;
+		height: 24px;
+		background-color: transparent;
+		border: 1px solid transparent;
+		border-radius: 3px;
+		cursor: pointer;
+		color: #e74c3c;
+		transition: all 0.2s;
+	}
+
+	.sim-remove-btn:hover {
+		background-color: rgba(231, 76, 60, 0.2);
+		border-color: #e74c3c;
+	}
+
+	.sim-item.active .sim-remove-btn {
+		color: white;
+	}
+
+	.sim-item.active .sim-remove-btn:hover {
+		background-color: rgba(255, 255, 255, 0.2);
+		border-color: white;
 	}
 
 	main {
 		flex: 1;
 		padding: 2rem;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		overflow: hidden;
 	}
 
 	.bottom-panel {
@@ -372,6 +529,9 @@
 		padding: 2rem;
 		overflow-y: auto;
 		color: #ecf0f1;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
 	}
 	
 	.tab-content h3 {
@@ -411,6 +571,16 @@
 		align-items: center;
 		height: 100%;
 		padding: 0;
+	}
+	
+	.custom-graph-tab {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		width: 100%;
+		min-height: 0;
+		padding: 0;
+		overflow: hidden;
 	}
 	
 	.heatmap-tab h3 {

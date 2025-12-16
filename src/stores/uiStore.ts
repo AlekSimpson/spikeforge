@@ -11,6 +11,7 @@ interface UIState {
 	isBottomPanelOpen: boolean;
 	bottomPanelHeight: number;
 	isResizingPanel: boolean;
+	allSpikeSims: SpikeSim[];
 	selectedSpikeSim: SpikeSim | null;
 	isSimulationPlaying: boolean;
 	currentAnimationColumn: number;
@@ -29,6 +30,7 @@ function createUIStore() {
 		isBottomPanelOpen: false,
 		bottomPanelHeight: 300,
 		isResizingPanel: false,
+		allSpikeSims: [],
 		selectedSpikeSim: null,
 		isSimulationPlaying: false,
 		currentAnimationColumn: -1,
@@ -81,6 +83,28 @@ function createUIStore() {
 				...state,
 				isResizingPanel: false
 			}));
+		},
+
+		addSpikeSim(spikeSim: SpikeSim) {
+			update(state => ({
+				...state,
+				allSpikeSims: [...state.allSpikeSims, spikeSim]
+			}));
+		},
+
+		removeSpikeSim(spikeSim: SpikeSim) {
+			update(state => {
+				const newSims = state.allSpikeSims.filter(sim => sim !== spikeSim);
+				const newSelected = state.selectedSpikeSim === spikeSim 
+					? (newSims.length > 0 ? newSims[0] : null)
+					: state.selectedSpikeSim;
+				
+				return {
+					...state,
+					allSpikeSims: newSims,
+					selectedSpikeSim: newSelected
+				};
+			});
 		},
 
 		selectSpikeSim(spikeSim: SpikeSim) {
@@ -202,6 +226,7 @@ export const isLeftSidebarOpen = derived(uiStore, $store => $store.isLeftSidebar
 export const isBottomPanelOpen = derived(uiStore, $store => $store.isBottomPanelOpen);
 export const bottomPanelHeight = derived(uiStore, $store => $store.bottomPanelHeight);
 export const isResizingPanel = derived(uiStore, $store => $store.isResizingPanel);
+export const allSpikeSims = derived(uiStore, $store => $store.allSpikeSims);
 export const selectedSpikeSim = derived(uiStore, $store => $store.selectedSpikeSim);
 export const isSimulationPlaying = derived(uiStore, $store => $store.isSimulationPlaying);
 export const currentAnimationColumn = derived(uiStore, $store => $store.currentAnimationColumn);
