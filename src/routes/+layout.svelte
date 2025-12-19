@@ -7,7 +7,6 @@
 	import TabBar from '../components/TabBar.svelte';
 	import Heatmap from '../components/Heatmap.svelte';
 	import MembranePotentialGraph from '../components/MembranePotentialGraph.svelte';
-	import SynapseGraph from '../components/SynapseGraph.svelte';
 	import CustomGraph from '../components/CustomGraph.svelte';
 	import { onMount } from 'svelte';
 
@@ -23,7 +22,6 @@
 	const tabs = [
 		{ id: 'heatmap', label: 'Network Activity Heatmap' },
 		{ id: 'membrane', label: 'Membrane Potential' },
-		{ id: 'synapse', label: 'Synapse Graph' },
 		{ id: 'custom', label: 'Custom Graph' },
 		{ id: 'playback', label: 'Playback' }
 	];
@@ -157,22 +155,6 @@
 						/>
 					{:else}
 						<p>No valid neuron count or membrane potential data</p>
-					{/if}
-				{:else}
-					<p>No simulation selected</p>
-				{/if}
-			</div>
-		{:else if ui.activeBottomTab === 'synapse'}
-			<div class="tab-content synapse-tab">
-				{#if sim}
-					{@const simData = $sim}
-					{#if simData && simData.neuronCount > 0 && simData.neuronSynapses.length > 0}
-						<SynapseGraph 
-							neuronSynapses={simData.neuronSynapses}
-							neuronCount={simData.neuronCount}
-						/>
-					{:else}
-						<p>No valid neuron count or synapse data</p>
 					{/if}
 				{:else}
 					<p>No simulation selected</p>

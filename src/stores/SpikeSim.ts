@@ -5,11 +5,6 @@
 
 import { writable } from 'svelte/store';
 
-export interface NeuronSynapses {
-	neuronId: number;
-	synapses: number[][]; // [connectionIndex][timeStep] = weight value (3 connections per neuron)
-}
-
 export interface SpikeSimState {
 	rank: number;
 	neuronCount: number;
@@ -21,105 +16,29 @@ export interface SpikeSimState {
 	fileSelector: string;
 	networkActivity: number[][]; // 2D array of activity levels (0-1) for heatmap visualization
 	membranePotentials: number[][]; // 2D array: [neuronIndex][timeStep] = potential value
-	neuronSynapses: NeuronSynapses[]; // Array of synapse data per neuron (3 connections each)
+	socket: WebSocket;
 }
 
 export type SpikeSim = ReturnType<typeof createSpikeSim>;
 
-function generateNetworkActivity(neuronCount: number): number[][] {
-	// Generate initial activity data based on neuron count
-	// This creates a square grid sized to sqrt(neuronCount)
-	const size = Math.ceil(Math.sqrt(neuronCount));
-	const activity: number[][] = [];
-	
-	for (let row = 0; row < size; row++) {
-		activity[row] = [];
-		for (let col = 0; col < size; col++) {
-			// Placeholder: random activity values (will be replaced with actual simulation data)
-			activity[row][col] = Math.random();
-		}
-	}
-	
-	return activity;
+export enum MessageType {
+	START,
+	SIM_STREAM,
+	STOP,
+	RESET,
+	SET,
+	GET
 }
 
-function generateMembranePotentials(neuronCount: number, lifetime: number): number[][] {
-	// Generate membrane potential data for each neuron over time
-	// Returns 2D array: [neuronIndex][timeStep] = potential value
-	const potentials: number[][] = [];
-	
-	for (let neuron = 0; neuron < neuronCount; neuron++) {
-		potentials[neuron] = [];
-		let currentPotential = -70 + Math.random() * 10; // Start near resting potential with variation
-		
-		for (let t = 0; t < lifetime; t++) {
-			// Simulate membrane potential with random spikes and decay
-			const spikeChance = Math.random();
-			
-			if (spikeChance > 0.95) {
-				// Spike occurs
-				currentPotential = 30 + Math.random() * 10; // Action potential peak
-			} else if (currentPotential > -60) {
-				// Decay towards resting potential
-				currentPotential -= 5 + Math.random() * 3;
-			} else {
-				// Small fluctuations near resting
-				currentPotential += (Math.random() - 0.5) * 2;
-			}
-			
-			// Clamp values to realistic range
-			currentPotential = Math.max(-80, Math.min(40, currentPotential));
-			potentials[neuron][t] = currentPotential;
-		}
-	}
-	
-	return potentials;
-}
-
-function generateNeuronSynapses(neuronCount: number, lifetime: number): NeuronSynapses[] {
-	// Generate synapse weight data for each neuron (3 connections per neuron)
-	// Returns array of neuron synapse data
-	const CONNECTIONS_PER_NEURON = 3;
-	const neuronSynapses: NeuronSynapses[] = [];
-	
-	for (let neuron = 0; neuron < neuronCount; neuron++) {
-		const synapses: number[][] = [];
-		
-		// Generate 3 connections for this neuron
-		for (let conn = 0; conn < CONNECTIONS_PER_NEURON; conn++) {
-			synapses[conn] = [];
-			let currentWeight = Math.random() * 2 - 1; // Start between -1 and 1
-			
-			for (let t = 0; t < lifetime; t++) {
-				// Simulate synapse weight changes with learning/plasticity
-				const changeChance = Math.random();
-				
-				if (changeChance > 0.9) {
-					// Sudden weight change (learning event)
-					currentWeight += (Math.random() - 0.5) * 0.4;
-				} else {
-					// Small drift/decay
-					currentWeight += (Math.random() - 0.5) * 0.05;
-				}
-				
-				// Clamp values to realistic range
-				currentWeight = Math.max(-1, Math.min(1, currentWeight));
-				synapses[conn][t] = currentWeight;
-			}
-		}
-		
-		neuronSynapses.push({
-			neuronId: neuron,
-			synapses: synapses
-		});
-	}
-	
-	return neuronSynapses;
+export interface ServerMessage {
+  type: MessageType;
+  payload: any;
 }
 
 export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 	const initialNeuronCount = initialState?.neuronCount ?? 10;
 	const initialLifetime = initialState?.lifetime ?? 50;
+	const SOCKET = initialState?.socket!;
 	
 	const { subscribe, set, update } = writable<SpikeSimState>({
 		rank: 0,
@@ -130,9 +49,9 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 		lifetime: initialLifetime,
 		threads: 1,
 		fileSelector: '',
-		networkActivity: generateNetworkActivity(initialNeuronCount),
-		membranePotentials: generateMembranePotentials(initialNeuronCount, initialLifetime),
-		neuronSynapses: generateNeuronSynapses(initialNeuronCount, initialLifetime),
+		networkActivity: [],
+		membranePotentials: [],
+		socket: SOCKET,
 		...initialState
 	});
 
@@ -142,39 +61,101 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 		updateRank(value: number) {
 			update(state => ({ ...state, rank: value }));
 		},
-		
-		updateNeuronCount(value: number) {
-			update(state => ({ 
-				...state, 
-				neuronCount: value,
-				networkActivity: generateNetworkActivity(value),
-				membranePotentials: generateMembranePotentials(value, state.lifetime),
-				neuronSynapses: generateNeuronSynapses(value, state.lifetime)
+
+		sendToEngine(type: MessageType, payload: any) {
+			SOCKET.send(JSON.stringify({type, payload}));
+		},
+
+		updateForTick(tick_: number, mps: number[]) {
+
+			update(state => ({
+				...state,
+				networkActivity: [],
+				membranePotentials: [...state.membranePotentials, mps],
+				tick: tick,
 			}));
 		},
 		
+		updateNeuronCount(value: number) {
+			// send engine reset
+			this.sendToEngine(MessageType.STOP, {});
+			this.sendToEngine(MessageType.RESET, {});
+
+			// set engine mp
+			this.sendToEngine(MessageType.SET, {
+				"neuron_count": value,
+			})
+
+			update(state => ({ ...state, neuronCount: value }));
+		},
+		
 		updateRestingMp(value: number) {
+			// send engine reset
+			this.sendToEngine(MessageType.STOP, {});
+			this.sendToEngine(MessageType.RESET, {});
+
+			// set engine resting mp
+			this.sendToEngine(MessageType.SET, {
+				"resting_mp": value,
+			});
+			
+			// update the frontend
 			update(state => ({ ...state, restingMp: value }));
 		},
 		
 		updateDecayRate(value: number) {
+			// send engine reset
+			this.sendToEngine(MessageType.STOP, {});
+			this.sendToEngine(MessageType.RESET, {});
+
+			// set engine decay rate
+			this.sendToEngine(MessageType.SET, {
+				"decay_rate": value,
+			});
+			
+			// update the frontend
 			update(state => ({ ...state, decayRate: value }));
 		},
 		
 		updateLearningRate(value: number) {
+			// send engine reset
+			this.sendToEngine(MessageType.STOP, {});
+			this.sendToEngine(MessageType.RESET, {});
+
+			// set engine learning rate
+			this.sendToEngine(MessageType.SET, {
+				"learning_rate": value
+			});
+			
+			// update the frontend
 			update(state => ({ ...state, learningRate: value }));
 		},
 		
 		updateLifetime(value: number) {
-			update(state => ({ 
-				...state, 
-				lifetime: value,
-				membranePotentials: generateMembranePotentials(state.neuronCount, value),
-				neuronSynapses: generateNeuronSynapses(state.neuronCount, value)
-			}));
+			// send engine reset
+			this.sendToEngine(MessageType.STOP, {});
+			this.sendToEngine(MessageType.RESET, {});
+
+			// set engine lifetime
+			this.sendToEngine(MessageType.SET, {
+				"lifetime": value
+			});
+			
+			// update the frontend
+			update(state => ({ ...state, lifetime: value }));
 		},
 		
 		updateThreads(value: number) {
+			// send engine reset
+			this.sendToEngine(MessageType.STOP, {});
+			this.sendToEngine(MessageType.RESET, {});
+
+			// set engine threads
+			this.sendToEngine(MessageType.SET, {
+				"threads": value
+			});
+			
+			// update the frontend
 			update(state => ({ ...state, threads: value }));
 		},
 		
@@ -185,35 +166,6 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 		updateNetworkActivity(activity: number[][]) {
 			update(state => ({ ...state, networkActivity: activity }));
 		},
-		
-		regenerateNetworkActivity() {
-			update(state => ({ 
-				...state, 
-				networkActivity: generateNetworkActivity(state.neuronCount)
-			}));
-		},
-		
-		updateMembranePotentials(potentials: number[][]) {
-			update(state => ({ ...state, membranePotentials: potentials }));
-		},
-		
-		regenerateMembranePotentials() {
-			update(state => ({
-				...state,
-				membranePotentials: generateMembranePotentials(state.neuronCount, state.lifetime)
-			}));
-		},
-		
-		updateNeuronSynapses(synapses: NeuronSynapses[]) {
-			update(state => ({ ...state, neuronSynapses: synapses }));
-		},
-		
-		regenerateNeuronSynapses() {
-			update(state => ({
-				...state,
-				neuronSynapses: generateNeuronSynapses(state.neuronCount, state.lifetime)
-			}));
-		}
 	};
 }
 
