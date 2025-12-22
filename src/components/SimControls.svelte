@@ -47,19 +47,6 @@
 		<div class="divider"></div>
 		
 		<div class="control-group">
-			<label for="neuron-count">Neuron Count:</label>
-			<input 
-				id="neuron-count" 
-				type="number" 
-				value={$sim.neuronCount}
-				oninput={(e) => sim.updateNeuronCount(Number(e.currentTarget.value))}
-				min="1"
-			/>
-		</div>
-		
-		<div class="divider"></div>
-		
-		<div class="control-group">
 			<label for="resting-mp">Resting MP:</label>
 			<input 
 				id="resting-mp" 

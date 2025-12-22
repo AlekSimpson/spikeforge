@@ -18,6 +18,9 @@
 	const sims = $derived($allSpikeSims);
 	const backendConnected = $derived($isBackendConnected);
 	
+	// WebSocket connection
+	let socket: WebSocket | null = null;
+	
 	// Define tabs for bottom panel
 	const tabs = [
 		{ id: 'heatmap', label: 'Network Activity Heatmap' },
@@ -33,6 +36,51 @@
 			uiStore.addSpikeSim(defaultSim);
 			uiStore.selectSpikeSim(defaultSim);
 		}
+
+		// Initialize WebSocket connection
+		socket = new WebSocket('ws://localhost:8080/engine/stream');
+		
+		socket.addEventListener('open', () => {
+			console.log('WebSocket connected');
+			uiStore.setBackendConnected(true);
+		});
+		
+		socket.addEventListener('close', () => {
+			console.log('WebSocket disconnected');
+			uiStore.setBackendConnected(false);
+		});
+		
+		socket.addEventListener('error', (error) => {
+			console.error('WebSocket error:', error);
+			uiStore.setBackendConnected(false);
+		});
+		
+		socket.addEventListener('message', (event) => {
+			console.log('Streaming SNN Simulation...');
+			
+			try {
+				// Parse the JSON data from the WebSocket
+				const data = JSON.parse(event.data);
+				const tick: number = data.tick;
+				const mps: number[] = data.mps;
+				
+				// Get the current selected simulation
+				const currentSim = $selectedSpikeSim;
+				if (currentSim) {
+					currentSim.updateForTick(tick, mps);
+				}
+			} catch (error) {
+				console.error('Error processing WebSocket message:', error);
+			}
+		});
+
+		// Cleanup function: close socket when component is destroyed
+		return () => {
+			if (socket) {
+				socket.close();
+				socket = null;
+			}
+		};
 	});
 	
 	// Delegate to ViewModel

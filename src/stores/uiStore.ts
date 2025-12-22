@@ -5,7 +5,7 @@
 
 import { writable, derived } from 'svelte/store';
 import type { SpikeSim, SpikeSimState } from './SpikeSim';
-import { createSpikeSim, MessageType } from './SpikeSim';
+import { createSpikeSim } from './SpikeSim';
 
 interface UIState {
 	isLeftSidebarOpen: boolean;
@@ -19,14 +19,11 @@ interface UIState {
 	toggledCells: Map<string, boolean>;
 	activeBottomTab: string;
 	isBackendConnected: boolean;
-	socket: WebSocket;
 }
 
 const MIN_PANEL_HEIGHT = 100;
 const MENU_BAR_HEIGHT = 60;
 const STORAGE_KEY = 'spikeforge_simulations';
-const SOCKET = new WebSocket('ws://spikeframe.asuscomm.com:8888');
-
 
 let animationInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -95,8 +92,7 @@ function createUIStore() {
 		currentAnimationColumn: -1,
 		toggledCells: new Map(),
 		activeBottomTab: 'heatmap',
-		isBackendConnected: false,
-		socket: SOCKET
+		isBackendConnected: false
 	});
 
 	return {
@@ -298,30 +294,6 @@ function createUIStore() {
 }
 
 export const uiStore = createUIStore();
-
-SOCKET.addEventListener('message', (event) => {
-	var data = event.data
-	if (data['type'] != MessageType.SIM_STREAM) {
-		return;
-	}
-	var payload = data['payload'];
-	var tick = payload['tick'];
-
-	// uiStore.selectSpikeSim.update(state => ({
-	// 	...state,
-	// 	networkActivity: [],
-	// 	membranePotentials: [],
-	// 	tick: tick,
-	// }))
-
-
-	// update(state => ({
-	// 	...state,
-	// 	networkActivity: [],
-	// 	membranePotentials: [],
-	// 	tick: tick,
-	// }));
-});
 
 // Derived stores for convenience
 export const isLeftSidebarOpen = derived(uiStore, $store => $store.isLeftSidebarOpen);
