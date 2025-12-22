@@ -3,7 +3,6 @@
  * Manages state for a spike simulation
  */
 
-import type { Server } from '@sveltejs/kit';
 import { writable } from 'svelte/store';
 
 export interface ServerResponse {
@@ -17,7 +16,12 @@ const stop_simulation = async (): Promise<ServerResponse> => {
 		console.log('Calling stop_simulation...');
 		const response = await fetch('http://localhost:8080/engine/stop', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			mode: 'cors',
+			headers: { 
+				'Content-Type': 'application/json',
+				'Accept': 'application/json'
+			},
+			credentials: 'omit',
 			body: JSON.stringify({})
 		});
 		const result = await response.json();
@@ -34,7 +38,12 @@ const reset_simulation = async (to_tick: number = 0): Promise<ServerResponse> =>
 		console.log('Calling reset_simulation with to_tick:', to_tick);
 		const response = await fetch('http://localhost:8080/engine/reset', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			mode: 'cors',
+			headers: { 
+				'Content-Type': 'application/json',
+				'Accept': 'application/json'
+			},
+			credentials: 'omit',
 			body: JSON.stringify({'to_tick': to_tick})
 		});
 		const result = await response.json();
@@ -51,7 +60,12 @@ const start_simulation = async (simulation_inputs: number[]): Promise<ServerResp
 		console.log('Calling start_simulation with inputs:', simulation_inputs);
 		const response = await fetch('http://localhost:8080/engine/start', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			mode: 'cors',
+			headers: { 
+				'Content-Type': 'application/json',
+				'Accept': 'application/json'
+			},
+			credentials: 'omit',
 			body: JSON.stringify({'simulation_inputs': simulation_inputs})
 		});
 		const result = await response.json();
@@ -68,7 +82,12 @@ const set_engine = async (settings: any): Promise<ServerResponse> => {
 		console.log('Calling set_engine with settings:', settings);
 		const response = await fetch('http://localhost:8080/engine/set', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' }, 
+			mode: 'cors',
+			headers: { 
+				'Content-Type': 'application/json',
+				'Accept': 'application/json'
+			},
+			credentials: 'omit',
 			body: JSON.stringify(settings)
 		});
 		const result = await response.json();
@@ -83,10 +102,15 @@ const set_engine = async (settings: any): Promise<ServerResponse> => {
 const get_engine = async (requests: string[]): Promise<ServerResponse> => {
 	try {
 		console.log('Calling get_engine with requests:', requests);
-		const response = await fetch('http://localhost:8080/engine/get', {
+		// Convert requests array to query parameters for GET request
+		const params = new URLSearchParams({ requests: JSON.stringify(requests) });
+		const response = await fetch(`http://localhost:8080/engine/get?${params}`, {
 			method: 'GET',
-			headers: { 'Content-Type': 'application/json' }, 
-			body: JSON.stringify(requests)
+			mode: 'cors',
+			headers: { 
+				'Accept': 'application/json'
+			},
+			credentials: 'omit'
 		});
 		const result = await response.json();
 		console.log('get_engine response:', result);

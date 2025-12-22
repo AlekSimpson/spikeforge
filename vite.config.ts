@@ -16,5 +16,15 @@ export default defineConfig({
 				}
 			}
 		}
+	},
+	server: {
+		proxy: {
+			// Proxy API requests to backend server to avoid CORS issues in development
+			'/api': {
+				target: 'http://localhost:8080',
+				changeOrigin: true,
+				rewrite: (path) => path.replace(/^\/api/, '/engine')
+			}
+		}
 	}
 });
