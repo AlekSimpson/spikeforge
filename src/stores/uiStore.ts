@@ -202,42 +202,37 @@ function createUIStore() {
 			}));
 		},
 
-	async playSimulation(totalColumns: number) {
-		try {
-			const currentState = get({ subscribe });
-			const inputGrid = currentState.inputGrid;
-			
-			console.log('PlaySimulation - validating inputGrid:');
-			console.log('- Grid dimensions:', inputGrid?.length, 'x', inputGrid?.[0]?.length);
-			console.log('- Is array:', Array.isArray(inputGrid));
-			console.log('- First row is array:', Array.isArray(inputGrid?.[0]));
-			
-			await start_simulation(inputGrid);
-			
-			update(state => {
-				const startColumn = state.currentAnimationColumn < 0 ? 0 : state.currentAnimationColumn;
+		async playSimulation(totalColumns: number) {
+			try {
+				const currentState = get({ subscribe });
+				const inputGrid = currentState.inputGrid;
+
+				await start_simulation(inputGrid);
+
+				update(state => {
+					const startColumn = state.currentAnimationColumn < 0 ? 0 : state.currentAnimationColumn;
 	
-				if (animationInterval) {
-					clearInterval(animationInterval);
-				}
+					if (animationInterval) {
+						clearInterval(animationInterval);
+					}
 	
-				animationInterval = setInterval(() => {
-					update(s => ({
-						...s,
-						currentAnimationColumn: (s.currentAnimationColumn + 1) % totalColumns
-					}));
-				}, 100);
+					animationInterval = setInterval(() => {
+						update(s => ({
+							...s,
+							currentAnimationColumn: (s.currentAnimationColumn + 1) % totalColumns
+						}));
+					}, 100);
 	
-				return {
-					...state,
-					isSimulationPlaying: true,
-					currentAnimationColumn: startColumn
-				};
-			});
-		} catch (error) {
-			console.error('Simulation error:', error);
-		}
-	},
+					return {
+						...state,
+						isSimulationPlaying: true,
+						currentAnimationColumn: startColumn
+					};
+				});
+			} catch (error) {
+				console.error('Simulation error:', error);
+			}
+		},
 
 		async pauseSimulation() {
 			await stop_simulation();

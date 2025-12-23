@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import { selectedSpikeSim } from '../stores/uiStore';
+	import { TOPOLOGY_OPTIONS } from '../stores/SpikeSim';
 	
 	// Subscribe to selected SpikeSim ViewModel
 	const sim = $derived($selectedSpikeSim);
@@ -22,13 +23,16 @@
 {#if sim}
 	<div class="sim-controls">
 		<div class="control-group">
+			<label for="topology">Topology:</label>
 			<select 
+				id="topology"
 				value={$sim.fileSelector} 
 				onchange={(e) => sim.updateFileSelector(e.currentTarget.value)}
 				class="file-selector"
 			>
-				<option value="">Select file...</option>
-				<!-- File options will be populated from ViewModel -->
+				{#each TOPOLOGY_OPTIONS as option}
+					<option value={option.value}>{option.label}</option>
+				{/each}
 			</select>
 		</div>
 		
@@ -192,7 +196,15 @@
 	}
 	
 	.file-selector {
-		width: 130px;
+		width: 160px;
+		padding: 0.35rem 0.5rem;
+		cursor: pointer;
+	}
+	
+	.file-selector option {
+		padding: 0.5rem 0.75rem;
+		background-color: #2c3e50;
+		color: #ecf0f1;
 	}
 	
 	@media (max-width: 1200px) {
@@ -201,7 +213,7 @@
 		}
 		
 		.file-selector {
-			width: 110px;
+			width: 140px;
 		}
 		
 		label {

@@ -33,6 +33,27 @@ export const stop_simulation = async (): Promise<ServerResponse> => {
 	}
 };
 
+export const init_engine = async (topology: string): Promise<ServerResponse> => {
+	try {
+		const response = await fetch('http://localhost:8080/engine/topology', {
+			method: 'POST',
+			mode: 'cors',
+			headers: { 
+				'Content-Type': 'application/json',
+				'Accept': 'application/json'
+			},
+			credentials: 'omit',
+			body: JSON.stringify({"topology": topology})
+		});
+		const result = await response.json();
+		console.log('stop_simulation response:', result);
+		return result;
+	}catch (error) {
+		console.error('init_engine error:', error);
+		throw error;
+	}
+}
+
 export const reset_simulation = async (to_tick: number = 0): Promise<ServerResponse> => {
 	try {
 		console.log('Calling reset_simulation with to_tick:', to_tick);
@@ -146,6 +167,18 @@ export const DEFAULT_RESTING_MP = 0.1;
 export const DEFAULT_LEARNING_RATE = 0.5;
 export const DEFAULT_THREADS = 1024;
 
+// Network Topology Options
+export interface TopologyOption {
+	value: string;
+	label: string;
+}
+
+export const TOPOLOGY_OPTIONS: TopologyOption[] = [
+	{ value: 'square_torus', label: 'Square Torus' },
+];
+
+export const DEFAULT_TOPOLOGY = 'square_torus';
+
 export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 	const initialNeuronCount = initialState?.neuronCount ?? DEFAULT_NEURON_COUNT;
 	const initialLifetime = initialState?.lifetime ?? DEFAULT_LIFETIME;
@@ -158,7 +191,7 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 		learningRate: DEFAULT_LEARNING_RATE,
 		lifetime: initialLifetime,
 		threads: DEFAULT_THREADS,
-		fileSelector: 'square_torus',
+		fileSelector: DEFAULT_TOPOLOGY,
 		networkActivity: [],
 		membranePotentials: [],
 		...initialState
@@ -274,9 +307,16 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 			}
 		},
 		
-		updateFileSelector(value: string) {
+		async updateFileSelector(value: string) {
 			console.log('updateFileSelector called with:', value);
-			update(state => ({ ...state, fileSelector: value }));
+			try {
+				await stop_simulation()
+				await init_engine(value);
+
+				update(state => ({ ...state, fileSelector: value }));
+			}catch (error) {
+				console.error('update file selector: ', error);
+			}
 		},
 		
 		updateNetworkActivity(activity: number[][]) {
