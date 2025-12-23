@@ -3,9 +3,9 @@
  * Manages UI state for sidebars, panels, etc.
  */
 
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import type { SpikeSim, SpikeSimState } from './SpikeSim';
-import { createSpikeSim } from './SpikeSim';
+import { createSpikeSim, start_simulation, stop_simulation, DEFAULT_LIFETIME, DEFAULT_NEURON_COUNT } from './SpikeSim';
 
 interface UIState {
 	isLeftSidebarOpen: boolean;
@@ -17,6 +17,7 @@ interface UIState {
 	isSimulationPlaying: boolean;
 	currentAnimationColumn: number;
 	toggledCells: Map<string, boolean>;
+	inputGrid: number[][];
 	activeBottomTab: string;
 	isBackendConnected: boolean;
 }
@@ -81,6 +82,18 @@ function createUIStore() {
 	// Load persisted simulations from localStorage
 	const { sims: persistedSims, selectedSim: persistedSelected } = loadSimulationsFromStorage();
 
+	const createDefaultGrid = (neuron_count: number, lifetime: number) => {
+		var grid: number[][] = []
+
+		for (let i = 0; i < neuron_count; i++) {
+			grid[i] = []; // Initialize the row first
+			for (let j = 0; j < lifetime; j++) {
+				grid[i][j] = 0;
+			}
+		}
+		return grid;
+	};
+
 	const { subscribe, set, update } = writable<UIState>({
 		isLeftSidebarOpen: false,
 		isBottomPanelOpen: false,
@@ -91,6 +104,7 @@ function createUIStore() {
 		isSimulationPlaying: false,
 		currentAnimationColumn: -1,
 		toggledCells: new Map(),
+		inputGrid: createDefaultGrid(DEFAULT_NEURON_COUNT, DEFAULT_LIFETIME),
 		activeBottomTab: 'heatmap',
 		isBackendConnected: false
 	});
@@ -188,33 +202,46 @@ function createUIStore() {
 			}));
 		},
 
-		playSimulation(totalColumns: number) {
+	async playSimulation(totalColumns: number) {
+		try {
+			const currentState = get({ subscribe });
+			const inputGrid = currentState.inputGrid;
+			
+			console.log('PlaySimulation - validating inputGrid:');
+			console.log('- Grid dimensions:', inputGrid?.length, 'x', inputGrid?.[0]?.length);
+			console.log('- Is array:', Array.isArray(inputGrid));
+			console.log('- First row is array:', Array.isArray(inputGrid?.[0]));
+			
+			await start_simulation(inputGrid);
+			
 			update(state => {
-				// Start from beginning if not started, otherwise resume
 				const startColumn = state.currentAnimationColumn < 0 ? 0 : state.currentAnimationColumn;
-				
-				// Clear any existing interval
+	
 				if (animationInterval) {
 					clearInterval(animationInterval);
 				}
-				
-				// Start new interval
+	
 				animationInterval = setInterval(() => {
 					update(s => ({
 						...s,
 						currentAnimationColumn: (s.currentAnimationColumn + 1) % totalColumns
 					}));
 				}, 100);
-				
+	
 				return {
 					...state,
 					isSimulationPlaying: true,
 					currentAnimationColumn: startColumn
 				};
 			});
-		},
+		} catch (error) {
+			console.error('Simulation error:', error);
+		}
+	},
 
-		pauseSimulation() {
+		async pauseSimulation() {
+			await stop_simulation();
+
 			if (animationInterval) {
 				clearInterval(animationInterval);
 				animationInterval = null;
@@ -252,29 +279,50 @@ function createUIStore() {
 			}));
 		},
 
-		toggleCell(row: number, col: number) {
-			update(state => {
-				const key = `${row},${col}`;
-				const newToggledCells = new Map(state.toggledCells);
-				
-				if (newToggledCells.has(key)) {
-					newToggledCells.delete(key);
-				} else {
-					newToggledCells.set(key, true);
-				}
-				
-				return {
-					...state,
-					toggledCells: newToggledCells
-				};
-			});
-		},
+	toggleCell(row: number, col: number) {
+		update(state => {
+			const key = `${row},${col}`;
+			const newToggledCells = new Map(state.toggledCells);
+			// Deep copy the 2D array to avoid mutating the original
+			var newInputGrid: number[][] = state.inputGrid.map(row => [...row]);
+
+			if (newToggledCells.has(key)) {
+				newToggledCells.delete(key);
+				newInputGrid[row][col] = 0;
+			} else {
+				newToggledCells.set(key, true);
+				newInputGrid[row][col] = 1;
+			}
+			
+			return {
+				...state,
+				toggledCells: newToggledCells,
+				inputGrid: newInputGrid
+			};
+		});
+	},
 
 		clearAllToggledCells() {
-			update(state => ({
-				...state,
-				toggledCells: new Map()
-			}));
+		    update(state => {
+		        // Default values in case there's no selected simulation
+		        let neuron_count = DEFAULT_NEURON_COUNT;
+		        let lifetime = DEFAULT_LIFETIME;
+			
+		        // If there's a selected simulation, get its state values
+		        if (state.selectedSpikeSim) {
+		            const unsubscribe = state.selectedSpikeSim.subscribe(simState => {
+		                neuron_count = simState.neuronCount;
+		                lifetime = simState.lifetime;
+		            });
+		            unsubscribe(); // Immediately unsubscribe after reading
+		        }
+			
+		        return {
+		            ...state,
+		            toggledCells: new Map(),
+		            inputGrid: createDefaultGrid(neuron_count, lifetime)
+		        };
+		    });
 		},
 
 		setActiveBottomTab(tabName: string) {
