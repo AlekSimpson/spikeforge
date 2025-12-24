@@ -28,6 +28,7 @@
 				id="topology"
 				value={$sim.topology} 
 				onchange={(e) => sim.updateTopology(e.currentTarget.value)}
+				onsubmit={(e) => sim.updateTopology(e.currentTarget.value)}
 				class="file-selector"
 			>
 				{#each TOPOLOGY_OPTIONS as option}
@@ -37,14 +38,14 @@
 		</div>
 		
 		<div class="divider"></div>
-		
+
 		<div class="control-group">
-			<label for="rank">Rank:</label>
+			<label for="shape">Shape:</label>
 			<input 
-				id="rank" 
+				id="shape" 
 				type="number" 
-				value={$sim.rank}
-				oninput={(e) => sim.updateRank(Number(e.currentTarget.value))}
+				value={$sim.shape}
+				oninput={(e) => sim.updateShape(Number(e.currentTarget.value))}
 			/>
 		</div>
 		
@@ -63,7 +64,7 @@
 		<div class="divider"></div>
 		
 		<div class="control-group">
-			<label for="decay">Decay:</label>
+			<label for="decay">Decay Rate:</label>
 			<input 
 				id="decay" 
 				type="number" 
@@ -75,7 +76,7 @@
 		<div class="divider"></div>
 		
 		<div class="control-group">
-			<label for="learning">Learning:</label>
+			<label for="learning">Learning Rate:</label>
 			<input 
 				id="learning" 
 				type="number" 

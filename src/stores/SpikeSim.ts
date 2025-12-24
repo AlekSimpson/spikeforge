@@ -3,8 +3,8 @@
  * Manages state for a spike simulation
  */
 
-import { writable } from 'svelte/store';
-
+import { writable, derived, get } from 'svelte/store';
+import { uiStore } from './uiStore';
 export interface ServerResponse {
 	success: boolean;
 	error_code: number;
@@ -33,7 +33,7 @@ export const stop_simulation = async (): Promise<ServerResponse> => {
 	}
 };
 
-export const init_engine = async (topology: string): Promise<ServerResponse> => {
+export const init_engine = async (topology: string, shape: number): Promise<ServerResponse> => {
 	try {
 		const response = await fetch('http://localhost:8080/engine/topology', {
 			method: 'POST',
@@ -43,7 +43,7 @@ export const init_engine = async (topology: string): Promise<ServerResponse> => 
 				'Accept': 'application/json'
 			},
 			credentials: 'omit',
-			body: JSON.stringify({"topology": topology})
+			body: JSON.stringify({"topology": topology, "shape": shape})
 		});
 		const result = await response.json();
 		console.log('init_engine response:', result);
@@ -122,6 +122,23 @@ export const set_engine = async (settings: any): Promise<ServerResponse> => {
 	}
 };
 
+export const check_engine_ready = async (): Promise<ServerResponse> => {
+	console.log('Calling stop_simulation...');
+	const response = await fetch('http://localhost:8080/engine/ready', {
+		method: 'GET',
+		mode: 'cors',
+		headers: { 
+			'Content-Type': 'application/json',
+			'Accept': 'application/json'
+		},
+		credentials: 'omit',
+	});
+	const result = await response.json();
+	uiStore.setEngineReady((Boolean(result["success"])));
+	console.log('stop_simulation response:', result);
+	return result;
+};
+
 export const get_engine = async (requests: string[]): Promise<ServerResponse> => {
 	try {
 		console.log('Calling get_engine with requests:', requests);
@@ -145,7 +162,6 @@ export const get_engine = async (requests: string[]): Promise<ServerResponse> =>
 }
 
 export interface SpikeSimState {
-	rank: number;
 	neuronCount: number;
 	restingMp: number;
 	decayRate: number;
@@ -156,13 +172,13 @@ export interface SpikeSimState {
 	networkActivity: number[][]; // 2D array of activity levels (0-1) for heatmap visualization
 	membranePotentials: number[][]; // 2D array: [neuronIndex][timeStep] = potential value
 	inputNeurons: number[];
+	shape: number;
 }
 
 export type SpikeSim = ReturnType<typeof createSpikeSim>;
 
 export const DEFAULT_NEURON_COUNT = 10;
 export const DEFAULT_LIFETIME = 50;
-export const DEFAULT_RANK = 0;
 export const DEFAULT_DECAY_RATE = 0.5;
 export const DEFAULT_RESTING_MP = 0.1;
 export const DEFAULT_LEARNING_RATE = 0.5;
@@ -176,6 +192,7 @@ export interface TopologyOption {
 
 export const TOPOLOGY_OPTIONS: TopologyOption[] = [
 	{ value: 'square_torus', label: 'Square Torus' },
+	{ value: 'none', label: 'none'}
 ];
 
 export const DEFAULT_TOPOLOGY = 'square_torus';
@@ -185,7 +202,6 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 	const initialLifetime = initialState?.lifetime ?? DEFAULT_LIFETIME;
 	
 	const { subscribe, set, update } = writable<SpikeSimState>({
-		rank: DEFAULT_RANK,
 		neuronCount: initialNeuronCount,
 		restingMp: DEFAULT_RESTING_MP,
 		decayRate: DEFAULT_DECAY_RATE,
@@ -196,6 +212,7 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 		networkActivity: [],
 		membranePotentials: [],
 		inputNeurons: [],
+		shape: 10,
 		...initialState
 	});
 
@@ -209,19 +226,6 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 				membranePotentials: [...state.membranePotentials, mps],
 				tick: tick_,
 			}));
-		},
-
-		async updateRank(value: number) {
-			console.log('updateRank called with:', value);
-			try {
-				await stop_simulation();
-				await set_engine({"rank": value});
-
-				update(state => ({ ...state, rank: value }));
-				console.log('updateRank completed successfully');
-			} catch (error) {
-				console.error('updateRank failed: ', error)
-			}
 		},
 		
 		async updateRestingMp(value: number) {
@@ -240,15 +244,24 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 				console.error('updateRestingMp failed:', error);
 			}
 		},
+
+		async updateShape(value: number) {
+			const currentState = get({ subscribe });
+			await init_engine(currentState.topology, value);
+
+			await check_engine_ready();
+
+			update(state => ({...state, shape: value}))
+		},
 		
 		async updateDecayRate(value: number) {
 			console.log('updateDecayRate called with:', value);
 			try {
 				// send engine reset
-				await stop_simulation()
+				await stop_simulation();
 
 				// set engine decay rate
-				await set_engine({"decay_rate": value})
+				await set_engine({"decay_rate": value});
 				
 				// update the frontend
 				update(state => ({ ...state, decayRate: value }));
@@ -262,10 +275,10 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 			console.log('updateLearningRate called with:', value);
 			try {
 				// send engine reset
-				await stop_simulation()
+				await stop_simulation();
 
 				// set engine learning rate
-				await set_engine({"learning_rate": value})
+				await set_engine({"learning_rate": value});
 				
 				// update the frontend
 				update(state => ({ ...state, learningRate: value }));
@@ -279,10 +292,10 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 			console.log('updateLifetime called with:', value);
 			try {
 				// send engine reset
-				await stop_simulation()
+				await stop_simulation();
 
 				// set engine lifetime
-				await set_engine({"lifetime": value})
+				await set_engine({"lifetime": value});
 
 				// update the frontend
 				update(state => ({ ...state, lifetime: value }));
@@ -295,8 +308,8 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 		async updateThreads(value: number) {
 			console.log('updateThreads called with:', value);
 			try {
-				await stop_simulation()
-				await set_engine({"threads": value})
+				await stop_simulation();
+				await set_engine({"threads": value});
 				
 				// update the frontend
 				update(state => ({ ...state, threads: value }));
@@ -310,9 +323,18 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 			console.log('updateFileSelector called with:', value);
 			try {
 				await stop_simulation();
-				await init_engine(value);
 
-				update(state => ({ ...state, topology: value }));
+				const currentState = get({ subscribe });
+				await init_engine(value, currentState.shape);
+
+				await check_engine_ready();
+
+				update(state => { 
+					return {
+						...state, 
+						topology: value 
+					}
+				});
 			}catch (error) {
 				console.error('update file selector: ', error);
 			}
@@ -322,7 +344,8 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 			console.log('updateInputNeurons called with:', value);
 			try {
 				await stop_simulation();
-				await set_engine({"input_neurons": value})
+				await set_engine({"input_neurons": value});
+				await check_engine_ready();
 
 				update(state => ({ ...state, inputNeurons: value }));
 			}catch (error) {

@@ -20,6 +20,7 @@ interface UIState {
 	inputGrid: number[][];
 	activeBottomTab: string;
 	isBackendConnected: boolean;
+	engineReady: boolean;
 }
 
 const MIN_PANEL_HEIGHT = 100;
@@ -106,7 +107,8 @@ function createUIStore() {
 		toggledCells: new Map(),
 		inputGrid: createDefaultGrid(DEFAULT_NEURON_COUNT, DEFAULT_LIFETIME),
 		activeBottomTab: 'heatmap',
-		isBackendConnected: false
+		isBackendConnected: false, 
+		engineReady: false,
 	});
 
 	return {
@@ -325,6 +327,13 @@ function createUIStore() {
 		    });
 		},
 
+		setEngineReady(value: boolean) {
+			update(state => ({
+				...state,
+				engineReady: value
+			}))
+		},
+
 		setActiveBottomTab(tabName: string) {
 			update(state => ({
 				...state,
@@ -355,4 +364,5 @@ export const currentAnimationColumn = derived(uiStore, $store => $store.currentA
 export const toggledCells = derived(uiStore, $store => $store.toggledCells);
 export const activeBottomTab = derived(uiStore, $store => $store.activeBottomTab);
 export const isBackendConnected = derived(uiStore, $store => $store.isBackendConnected);
+export const isEngineReady = derived(uiStore, $store => $store.engineReady);
 

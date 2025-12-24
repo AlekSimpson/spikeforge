@@ -1,7 +1,7 @@
 <script lang="ts">
 	import './layout.css';
-	import { uiStore, selectedSpikeSim, allSpikeSims, isBackendConnected } from '../stores/uiStore';
-	import { createSpikeSim } from '../stores/SpikeSim';
+	import { uiStore, selectedSpikeSim, allSpikeSims, isBackendConnected, isEngineReady } from '../stores/uiStore';
+	import { createSpikeSim, check_engine_ready } from '../stores/SpikeSim';
 	import SpikeGrid from '../components/SpikeGrid.svelte';
 	import SimControls from '../components/SimControls.svelte';
 	import TabBar from '../components/TabBar.svelte';
@@ -17,6 +17,7 @@
 	const sim = $derived($selectedSpikeSim);
 	const sims = $derived($allSpikeSims);
 	const backendConnected = $derived($isBackendConnected);
+	const engineReady = $derived($isEngineReady);
 	
 	// WebSocket connection
 	let socket: WebSocket | null = null;
@@ -28,6 +29,8 @@
 		{ id: 'custom', label: 'Custom Graph' },
 		{ id: 'playback', label: 'Playback' }
 	];
+
+
 	
 	// Create and select a default SpikeSim on mount if none exist
 	onMount(() => {
@@ -39,11 +42,13 @@
 
 		// Initialize WebSocket connection
 		socket = new WebSocket('ws://localhost:8080/engine/stream');
-		
+
 		socket.addEventListener('open', () => {
 			console.log('WebSocket connected');
 			uiStore.setBackendConnected(true);
 		});
+
+		check_engine_ready();
 		
 		socket.addEventListener('close', () => {
 			console.log('WebSocket disconnected');
@@ -131,10 +136,17 @@
 			</svg>
 		</button>
 		<TabBar tabs={tabs} activeTab={ui.activeBottomTab} />
-		
-		<div class="connection-indicator" class:connected={backendConnected} title={backendConnected ? 'Backend Connected' : 'Backend Disconnected'}>
-			<div class="connection-dot"></div>
-			<span class="connection-text">{backendConnected ? 'Connected' : 'Disconnected'}</span>
+
+		<div class="connection-indicators">
+			<div class="connection-indicator" class:connected={engineReady} title={engineReady ? 'Engine Ready' : 'Engine not Ready'}>
+				<div class="connection-dot"></div>
+				<span class="connection-text">{engineReady ? 'Engine Ready' : 'Engine not Ready'}</span>
+			</div>
+			
+			<div class="connection-indicator" class:connected={backendConnected} title={backendConnected ? 'Backend Connected' : 'Backend Disconnected'}>
+				<div class="connection-dot"></div>
+				<span class="connection-text">{backendConnected ? 'Connected' : 'Disconnected'}</span>
+			</div>
 		</div>
 	</nav>
 
@@ -300,11 +312,17 @@
 		position: relative;
 	}
 
-	.connection-indicator {
+	.connection-indicators {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
 		margin-left: auto;
+	}
+
+	.connection-indicator {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 		padding: 0.4rem 0.8rem;
 		background-color: rgba(231, 76, 60, 0.2);
 		border: 1px solid #e74c3c;
