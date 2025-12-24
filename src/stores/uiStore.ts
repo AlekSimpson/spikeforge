@@ -207,7 +207,12 @@ function createUIStore() {
 				const currentState = get({ subscribe });
 				const inputGrid = currentState.inputGrid;
 
-				await start_simulation(inputGrid);
+				let response = await start_simulation(inputGrid);
+				console.log('response is ', response)
+				if (!Boolean(response['success'])) {
+					console.error("Engine is not ready: ", response['message']);
+					return
+				}
 
 				update(state => {
 					const startColumn = state.currentAnimationColumn < 0 ? 0 : state.currentAnimationColumn;
@@ -274,28 +279,28 @@ function createUIStore() {
 			}));
 		},
 
-	toggleCell(row: number, col: number) {
-		update(state => {
-			const key = `${row},${col}`;
-			const newToggledCells = new Map(state.toggledCells);
-			// Deep copy the 2D array to avoid mutating the original
-			var newInputGrid: number[][] = state.inputGrid.map(row => [...row]);
+		toggleCell(row: number, col: number) {
+			update(state => {
+				const key = `${row},${col}`;
+				const newToggledCells = new Map(state.toggledCells);
+				// Deep copy the 2D array to avoid mutating the original
+				var newInputGrid: number[][] = state.inputGrid.map(row => [...row]);
 
-			if (newToggledCells.has(key)) {
-				newToggledCells.delete(key);
-				newInputGrid[row][col] = 0;
-			} else {
-				newToggledCells.set(key, true);
-				newInputGrid[row][col] = 1;
-			}
-			
-			return {
-				...state,
-				toggledCells: newToggledCells,
-				inputGrid: newInputGrid
-			};
-		});
-	},
+				if (newToggledCells.has(key)) {
+					newToggledCells.delete(key);
+					newInputGrid[row][col] = 0;
+				} else {
+					newToggledCells.set(key, true);
+					newInputGrid[row][col] = 1;
+				}
+				
+				return {
+					...state,
+					toggledCells: newToggledCells,
+					inputGrid: newInputGrid
+				};
+			});
+		},
 
 		clearAllToggledCells() {
 		    update(state => {

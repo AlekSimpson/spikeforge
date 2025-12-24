@@ -26,8 +26,8 @@
 			<label for="topology">Topology:</label>
 			<select 
 				id="topology"
-				value={$sim.fileSelector} 
-				onchange={(e) => sim.updateFileSelector(e.currentTarget.value)}
+				value={$sim.topology} 
+				onchange={(e) => sim.updateTopology(e.currentTarget.value)}
 				class="file-selector"
 			>
 				{#each TOPOLOGY_OPTIONS as option}
@@ -99,23 +99,46 @@
 		
 		<div class="divider"></div>
 		
-		<div class="control-group">
-			<label for="threads">Threads:</label>
-			<input 
-				id="threads" 
-				type="number" 
-				value={$sim.threads}
-				oninput={(e) => sim.updateThreads(Number(e.currentTarget.value))}
-				min="1"
-			/>
-		</div>
-		
-		<div class="divider"></div>
-		
-		<div class="control-group">
-			<button class="action-btn" onclick={handleImport}>Import</button>
-			<button class="action-btn" onclick={handleExport}>Export</button>
-		</div>
+	<div class="control-group">
+		<label for="threads">Threads:</label>
+		<input 
+			id="threads" 
+			type="number" 
+			value={$sim.threads}
+			oninput={(e) => sim.updateThreads(Number(e.currentTarget.value))}
+			min="1"
+		/>
+	</div>
+	
+	<div class="divider"></div>
+	
+	<div class="control-group">
+		<label for="input-neurons">Input Neurons:</label>
+		<input 
+			id="input-neurons" 
+			type="text" 
+			value={$sim.inputNeurons.join(', ')}
+			oninput={(e) => {
+				const value = e.currentTarget.value;
+				// Parse comma-separated numbers
+				const numbers = value
+					.split(',')
+					.map(s => s.trim())
+					.filter(s => s !== '')
+					.map(s => Number(s))
+					.filter(n => !isNaN(n));
+				sim.updateInputNeurons(numbers);
+			}}
+			placeholder="e.g., 0, 1, 2"
+		/>
+	</div>
+	
+	<div class="divider"></div>
+	
+	<div class="control-group">
+		<button class="action-btn" onclick={handleImport}>Import</button>
+		<button class="action-btn" onclick={handleExport}>Export</button>
+	</div>
 	</div>
 {:else}
 	<div class="sim-controls">
@@ -184,6 +207,7 @@
 	}
 	
 	input[type="number"],
+	input[type="text"],
 	.file-selector {
 		width: 70px;
 		padding: 0.35rem 0.4rem;
@@ -193,6 +217,10 @@
 		color: #ecf0f1;
 		font-size: 0.8rem;
 		flex-shrink: 0;
+	}
+	
+	input[type="text"] {
+		width: 120px;
 	}
 	
 	.file-selector {
@@ -212,6 +240,10 @@
 			width: 60px;
 		}
 		
+		input[type="text"] {
+			width: 100px;
+		}
+		
 		.file-selector {
 			width: 140px;
 		}
@@ -222,6 +254,7 @@
 	}
 	
 	input[type="number"]:focus,
+	input[type="text"]:focus,
 	.file-selector:focus {
 		outline: none;
 		border-color: #3498db;

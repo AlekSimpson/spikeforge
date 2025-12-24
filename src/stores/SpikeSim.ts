@@ -46,13 +46,13 @@ export const init_engine = async (topology: string): Promise<ServerResponse> => 
 			body: JSON.stringify({"topology": topology})
 		});
 		const result = await response.json();
-		console.log('stop_simulation response:', result);
+		console.log('init_engine response:', result);
 		return result;
 	}catch (error) {
 		console.error('init_engine error:', error);
 		throw error;
 	}
-}
+};
 
 export const reset_simulation = async (to_tick: number = 0): Promise<ServerResponse> => {
 	try {
@@ -152,9 +152,10 @@ export interface SpikeSimState {
 	learningRate: number;
 	lifetime: number;
 	threads: number;
-	fileSelector: string;
+	topology: string;
 	networkActivity: number[][]; // 2D array of activity levels (0-1) for heatmap visualization
 	membranePotentials: number[][]; // 2D array: [neuronIndex][timeStep] = potential value
+	inputNeurons: number[];
 }
 
 export type SpikeSim = ReturnType<typeof createSpikeSim>;
@@ -191,9 +192,10 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 		learningRate: DEFAULT_LEARNING_RATE,
 		lifetime: initialLifetime,
 		threads: DEFAULT_THREADS,
-		fileSelector: DEFAULT_TOPOLOGY,
+		topology: DEFAULT_TOPOLOGY,
 		networkActivity: [],
 		membranePotentials: [],
+		inputNeurons: [],
 		...initialState
 	});
 
@@ -293,10 +295,7 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 		async updateThreads(value: number) {
 			console.log('updateThreads called with:', value);
 			try {
-				// send engine reset
 				await stop_simulation()
-
-				// set engine threads
 				await set_engine({"threads": value})
 				
 				// update the frontend
@@ -307,18 +306,30 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 			}
 		},
 		
-		async updateFileSelector(value: string) {
+		async updateTopology(value: string) {
 			console.log('updateFileSelector called with:', value);
 			try {
-				await stop_simulation()
+				await stop_simulation();
 				await init_engine(value);
 
-				update(state => ({ ...state, fileSelector: value }));
+				update(state => ({ ...state, topology: value }));
 			}catch (error) {
 				console.error('update file selector: ', error);
 			}
 		},
-		
+	
+		async updateInputNeurons(value: number[]) {
+			console.log('updateInputNeurons called with:', value);
+			try {
+				await stop_simulation();
+				await set_engine({"input_neurons": value})
+
+				update(state => ({ ...state, inputNeurons: value }));
+			}catch (error) {
+				console.error('update input neurons: ', error);
+			}
+		},
+	
 		updateNetworkActivity(activity: number[][]) {
 			update(state => ({ ...state, networkActivity: activity }));
 		},
