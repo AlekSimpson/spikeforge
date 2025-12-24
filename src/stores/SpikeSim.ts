@@ -227,7 +227,7 @@ export function createSpikeSim(initialState?: Partial<SpikeSimState>) {
 				tick: tick_,
 			}));
 		},
-		
+
 		async updateRestingMp(value: number) {
 			console.log('updateRestingMp called with:', value);
 			try {

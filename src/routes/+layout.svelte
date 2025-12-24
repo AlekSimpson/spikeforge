@@ -46,18 +46,19 @@
 		socket.addEventListener('open', () => {
 			console.log('WebSocket connected');
 			uiStore.setBackendConnected(true);
+			check_engine_ready();
 		});
-
-		check_engine_ready();
 		
 		socket.addEventListener('close', () => {
 			console.log('WebSocket disconnected');
 			uiStore.setBackendConnected(false);
+			uiStore.setEngineReady(false);
 		});
 		
 		socket.addEventListener('error', (error) => {
 			console.error('WebSocket error:', error);
 			uiStore.setBackendConnected(false);
+			uiStore.setEngineReady(false);
 		});
 		
 		socket.addEventListener('message', (event) => {
@@ -124,6 +125,10 @@
 	function handleRemoveSim(simToRemove: any) {
 		uiStore.removeSpikeSim(simToRemove);
 	}
+
+	async function syncBackend() {
+		await uiStore.syncBackend()
+	}
 </script>
 
 <svelte:window onmousemove={handleMouseMove} onmouseup={handleStopResize} />
@@ -138,10 +143,10 @@
 		<TabBar tabs={tabs} activeTab={ui.activeBottomTab} />
 
 		<div class="connection-indicators">
-			<div class="connection-indicator" class:connected={engineReady} title={engineReady ? 'Engine Ready' : 'Engine not Ready'}>
-				<div class="connection-dot"></div>
-				<span class="connection-text">{engineReady ? 'Engine Ready' : 'Engine not Ready'}</span>
-			</div>
+			<button class="engine-ready-indicator" onclick={syncBackend} class:connected={engineReady} title={engineReady ? 'Engine Ready' : 'Engine not Ready'}>
+				<div class="engine-ready-dot"></div>
+				<span class="engine-ready-text">{engineReady ? 'Engine Ready' : 'Engine not Ready'}</span>
+			</button>
 			
 			<div class="connection-indicator" class:connected={backendConnected} title={backendConnected ? 'Backend Connected' : 'Backend Disconnected'}>
 				<div class="connection-dot"></div>
@@ -331,6 +336,24 @@
 		transition: all 0.3s;
 	}
 
+	.engine-ready-indicator {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.4rem 0.8rem;
+		background-color: rgba(231, 76, 60, 0.2);
+		border: 1px solid #e74c3c;
+		border-radius: 4px;
+		font-size: 0.85rem;
+		transition: all 0.3s;
+		cursor: pointer;
+	}
+
+	.engine-ready-indicator.connected {
+		background-color: rgba(39, 174, 96, 0.2);
+		border-color: #27ae60;
+	}
+
 	.connection-indicator.connected {
 		background-color: rgba(39, 174, 96, 0.2);
 		border-color: #27ae60;
@@ -344,9 +367,27 @@
 		animation: pulse-disconnected 2s ease-in-out infinite;
 	}
 
+	.engine-ready-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background-color: #e74c3c;
+		animation: pulse-disconnected 2s ease-in-out infinite;
+	}
+
 	.connection-indicator.connected .connection-dot {
 		background-color: #27ae60;
 		animation: pulse-connected 2s ease-in-out infinite;
+	}
+
+	.engine-ready-indicator.connected .engine-ready-dot {
+		background-color: #27ae60;
+		animation: pulse-connected 2s ease-in-out infinite;
+	}
+
+	.engine-ready-text {
+		color: #e74c3c;
+		font-weight: 500;
 	}
 
 	.connection-text {
@@ -355,6 +396,10 @@
 	}
 
 	.connection-indicator.connected .connection-text {
+		color: #27ae60;
+	}
+
+	.engine-ready-indicator.connected .engine-ready-text {
 		color: #27ae60;
 	}
 

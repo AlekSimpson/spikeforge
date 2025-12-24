@@ -5,7 +5,7 @@
 
 import { writable, derived, get } from 'svelte/store';
 import type { SpikeSim, SpikeSimState } from './SpikeSim';
-import { createSpikeSim, start_simulation, stop_simulation, DEFAULT_LIFETIME, DEFAULT_NEURON_COUNT } from './SpikeSim';
+import { createSpikeSim, set_engine, start_simulation, stop_simulation, DEFAULT_LIFETIME, DEFAULT_NEURON_COUNT, check_engine_ready, init_engine } from './SpikeSim';
 
 interface UIState {
 	isLeftSidebarOpen: boolean;
@@ -113,6 +113,56 @@ function createUIStore() {
 
 	return {
 		subscribe,
+
+		async syncBackend() {
+			try {
+				const currentState = get({ subscribe });
+
+				var neuron_count = 0;
+				var lifetime = 0;
+				var topology = "";
+				var shape = 0;
+				var resting_mp = 0;
+				var decay_rate = 0;
+				var learning_rate = 0;
+				var threads = 0;
+				var input_neurons: number[] = [];
+				if (!currentState.selectedSpikeSim) {
+					return;
+				}
+
+		        const unsubscribe = currentState.selectedSpikeSim.subscribe(simState => {
+		            neuron_count = simState.neuronCount;
+					topology = simState.topology;
+					shape = simState.shape;
+		            lifetime = simState.lifetime;
+					resting_mp = simState.restingMp;
+					decay_rate = simState.decayRate;
+					learning_rate = simState.learningRate;
+					threads = simState.threads;
+					input_neurons = simState.inputNeurons;
+		        });
+		        unsubscribe(); // Immediately unsubscribe after reading
+
+				await stop_simulation();
+				let engine_response = await init_engine(topology, shape)
+				let response = await set_engine({
+					"neuron_count": neuron_count,
+					"lifetime": lifetime,
+					"resting_mp": resting_mp,
+					"decay_rate": decay_rate,
+					"learning_rate": learning_rate,
+					"threads": threads,
+					"input_neurons": input_neurons
+				});
+
+				let is_ready = Boolean(response['success']) && Boolean(engine_response['success'])
+				update(state => ({...state, engineReady: is_ready}))
+
+			} catch (error) {
+				console.error('syncBackend failed:', error);
+			}
+		},
 
 		toggleLeftSidebar() {
 			update(state => ({
