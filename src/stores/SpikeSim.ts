@@ -13,7 +13,6 @@ export interface ServerResponse {
 
 export const stop_simulation = async (): Promise<ServerResponse> => {
 	try {
-		console.log('Calling stop_simulation...');
 		const response = await fetch('http://localhost:8080/engine/stop', {
 			method: 'POST',
 			mode: 'cors',
@@ -25,7 +24,6 @@ export const stop_simulation = async (): Promise<ServerResponse> => {
 			body: JSON.stringify({})
 		});
 		const result = await response.json();
-		console.log('stop_simulation response:', result);
 		return result;
 	} catch (error) {
 		console.error('stop_simulation error:', error);
@@ -123,7 +121,6 @@ export const set_engine = async (settings: any): Promise<ServerResponse> => {
 };
 
 export const check_engine_ready = async (): Promise<ServerResponse> => {
-	console.log('Calling stop_simulation...');
 	const response = await fetch('http://localhost:8080/engine/ready', {
 		method: 'GET',
 		mode: 'cors',
@@ -135,7 +132,7 @@ export const check_engine_ready = async (): Promise<ServerResponse> => {
 	});
 	const result = await response.json();
 	uiStore.setEngineReady((Boolean(result["success"])));
-	console.log('stop_simulation response:', result);
+	console.log('check engine response:', result);
 	return result;
 };
 

@@ -146,7 +146,7 @@ function createUIStore() {
 
 				await stop_simulation();
 				let engine_response = await init_engine(topology, shape)
-				let response = await set_engine({
+				await set_engine({
 					"neuron_count": neuron_count,
 					"lifetime": lifetime,
 					"resting_mp": resting_mp,
@@ -156,7 +156,9 @@ function createUIStore() {
 					"input_neurons": input_neurons
 				});
 
-				let is_ready = Boolean(response['success']) && Boolean(engine_response['success'])
+				let ready_response = await check_engine_ready();
+
+				let is_ready = Boolean(engine_response['success']) && Boolean(ready_response['success'])
 				update(state => ({...state, engineReady: is_ready}))
 
 			} catch (error) {
